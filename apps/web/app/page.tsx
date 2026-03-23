@@ -1,21 +1,16 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+
+// Mapbox GL JSはブラウザAPIに依存するためSSRを無効化
+const MapView = dynamic(
+  () => import('@/components/map/MapView/MapView'),
+  {
+    ssr: false,
+    loading: () => <div style={{ width: '100%', height: '100%', background: '#1a1a1a' }} />,
+  }
+);
+
 export default function MapPage() {
-  return (
-    <main
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100dvh",
-        flexDirection: "column",
-        gap: "16px",
-      }}
-    >
-      <h1 style={{ fontFamily: "var(--font-display)", color: "var(--color-accent-primary)" }}>
-        OSHIATO
-      </h1>
-      <p style={{ color: "var(--color-text-secondary)" }}>
-        地図画面（Step 4 で実装予定）
-      </p>
-    </main>
-  );
+  return <MapView />;
 }
