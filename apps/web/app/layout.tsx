@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nunito, Zen_Maru_Gothic } from "next/font/google";
+import AppShell from "@/components/layout/AppShell/AppShell";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -26,7 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" className={`${nunito.variable} ${zenMaruGothic.variable}`}>
-      <body>{children}</body>
+      <body>
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

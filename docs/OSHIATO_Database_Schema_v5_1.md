@@ -20,6 +20,7 @@
 | v1.0 | 2026/03 | 初版作成 |
 | v5.0 | 2026/03 | Phase別テーブル構成に整理、最小構成を明確化 |
 | v5.1 | 2026/03 | Phase 1-2にusers, user_oshis, check_ins, visit_logsを追加、EXIF関連カラム追加 |
+| v5.2 | 2026/03 | check_insにchecked_dateカラムを追加（TIMESTAMPTZ式インデックスの非IMMUTABLE問題に対応） |
 
 ---
 
@@ -238,11 +239,12 @@ ALTER TABLE user_oshis ADD CONSTRAINT uq_user_oshi UNIQUE (user_id, oshi_id);
 | user_id | UUID | NO | | ユーザーID (FK) |
 | spot_id | UUID | NO | | スポットID (FK) |
 | checked_at | TIMESTAMPTZ | NO | NOW() | チェックイン日時 |
+| checked_date | DATE | NO | CURRENT_DATE | チェックイン日付（日次重複防止用） |
 
 ```sql
 -- ユニーク制約（同日に同じスポットへの重複チェックイン防止）
-ALTER TABLE check_ins ADD CONSTRAINT uq_daily_checkin 
-  UNIQUE (user_id, spot_id, (checked_at::DATE));
+-- ※ TIMESTAMPTZ式はIMMUTABLEでないため、DATE型カラムを別途用意して制約をかける
+CONSTRAINT uq_daily_checkin UNIQUE (user_id, spot_id, checked_date)
 ```
 
 #### spots（スポット）
@@ -667,12 +669,14 @@ CREATE TABLE post_images (
 CREATE INDEX idx_post_images_post_id ON post_images(post_id);
 
 -- check_ins テーブル
+-- ※ TIMESTAMPTZ式はIMMUTABLEでないため、checked_date DATE カラムで日次重複を管理する
 CREATE TABLE check_ins (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   spot_id UUID NOT NULL REFERENCES spots(id),
   checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_daily_checkin UNIQUE (user_id, spot_id, (checked_at::DATE))
+  checked_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  CONSTRAINT uq_daily_checkin UNIQUE (user_id, spot_id, checked_date)
 );
 CREATE INDEX idx_check_ins_user ON check_ins(user_id, checked_at DESC);
 

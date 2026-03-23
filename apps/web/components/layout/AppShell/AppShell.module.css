@@ -1,0 +1,16 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg-primary);
+  /* モバイルの最大幅を設定（デスクトップでも中央寄せ） */
+  max-width: 430px;
+  margin: 0 auto;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  /* スクロールをなめらかに（iOS対応） */
+  -webkit-overflow-scrolling: touch;
+}
