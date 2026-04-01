@@ -26,6 +26,7 @@ export type Database = {
           display_name?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       oshis: {
         Row: {
@@ -47,6 +48,7 @@ export type Database = {
           group_name?: string | null;
           category?: 'idol' | 'kpop' | 'anime' | 'voice_actor' | 'other';
         };
+        Relationships: [];
       };
       areas: {
         Row: {
@@ -71,6 +73,7 @@ export type Database = {
           bounds?: string | null;
           total_spots?: number;
         };
+        Relationships: [];
       };
       user_oshis: {
         Row: {
@@ -96,6 +99,7 @@ export type Database = {
           is_primary?: boolean;
           display_order?: number;
         };
+        Relationships: [];
       };
       spots: {
         Row: {
@@ -120,6 +124,7 @@ export type Database = {
           area_id?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       posts: {
         Row: {
@@ -168,6 +173,7 @@ export type Database = {
           reply_count?: number;
           updated_at?: string;
         };
+        Relationships: [];
       };
       post_images: {
         Row: {
@@ -188,6 +194,7 @@ export type Database = {
           image_url?: string;
           display_order?: number;
         };
+        Relationships: [];
       };
       check_ins: {
         Row: {
@@ -208,6 +215,7 @@ export type Database = {
           checked_at?: string;
           checked_date?: string;
         };
+        Relationships: [];
       };
       visit_logs: {
         Row: {
@@ -233,6 +241,7 @@ export type Database = {
           visited_at?: string;
           source?: 'checkin' | 'exif' | 'manual';
         };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

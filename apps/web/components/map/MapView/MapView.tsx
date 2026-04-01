@@ -26,7 +26,8 @@ export default function MapView() {
   const loadSpots = useCallback(async (map: mapboxgl.Map) => {
     const { data: spots, error } = await supabase
       .from('spots')
-      .select('*');
+      .select('*')
+      .returns<Spot[]>();
 
     if (error || !spots) return;
 
@@ -34,7 +35,7 @@ export default function MapView() {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    spots.forEach((spot: Spot) => {
+    spots.forEach((spot) => {
       // GEOGRAPHY型は "POINT(lng lat)" 形式で返ってくる場合があるためパース
       const coords = parsePoint(spot.location);
       if (!coords) return;
