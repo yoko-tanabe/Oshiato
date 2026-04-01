@@ -109,6 +109,11 @@
 | ドキュメント | PascalCase + バージョン | `Requirements_v5_1.md` |
 | ステアリングディレクトリ | YYYYMMDD-kebab-case | `20260322-map-display` |
 
+### Next.js `use client` ルール（必須）
+- **`page.tsx` に `'use client'` を直接記載しない**
+- クライアント処理が必要な場合は `components/` 配下の別ファイルに切り出し、`page.tsx` からimportする
+- 詳細: `docs/OSHIATO_Technical_Architecture_v5_1.md` の「4.4 Next.js コンポーネント設計方針」参照
+
 ### コード品質（実装後に必ず確認）
 - TypeScriptの型エラーがない
 - ESLintの警告がない

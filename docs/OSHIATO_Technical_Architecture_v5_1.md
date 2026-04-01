@@ -19,6 +19,7 @@
 | v1.0 | 2026/03 | 初版作成 |
 | v5.0 | 2026/03 | 段階的開発アプローチに変更、移行前提の設計、Phase別コスト計算追加 |
 | v5.1 | 2026/03 | Tailwind CSS削除、CSS Modulesに変更 |
+| v5.2 | 2026/04 | Next.js `use client` コンポーネント設計方針を追加 |
 
 ---
 
@@ -407,6 +408,71 @@
 | **通知** | UserNotifications | プッシュ通知 |
 | **ストレージ** | SwiftData | ローカルキャッシュ |
 | **Supabase** | supabase-swift | バックエンド連携 |
+
+### 4.2.1 Next.js コンポーネント設計方針
+
+#### `use client` の配置ルール
+
+Next.js App Router では、すべてのコンポーネントはデフォルトで **Server Component（サーバー側で実行）** として扱われる。
+
+**ルール: `page.tsx` に `'use client'` を直接書かない。**
+
+`page.tsx` に `'use client'` を付けると、そのページ全体がクライアントサイドレンダリング（CSR）になる。
+これにより、サーバーサイドレンダリング（SSR）の恩恵が失われ、**初回ページロードが著しく遅くなる**。
+
+#### 正しい実装パターン
+
+```
+app/
+└── map/
+    └── page.tsx          ← 'use client' なし（Server Component のまま）
+
+components/
+└── map/
+    └── MapView.tsx       ← 'use client' あり（クライアント処理をここに集約）
+```
+
+**page.tsx（Server Component）**:
+```tsx
+// 'use client' を書かない
+import MapView from '@/components/map/MapView'
+
+export default function MapPage() {
+  return <MapView />
+}
+```
+
+**MapView.tsx（Client Component）**:
+```tsx
+'use client'  // ← ここに書く
+
+import { useEffect, useState } from 'react'
+
+export default function MapView() {
+  const [map, setMap] = useState(null)
+  // ...クライアント処理
+}
+```
+
+#### なぜこうするのか
+
+| | page.tsx に `use client` | components/ に `use client` |
+|---|---|---|
+| **SSRの適用** | ページ全体がCSRになる（❌） | page.tsx はSSRのまま（✅） |
+| **初回ロード** | 遅い | 速い |
+| **SEO** | 不利 | 有利 |
+| **再利用性** | 低い | 高い（コンポーネント単位） |
+
+#### `use client` が必要になる処理
+
+以下を使う場合は、必ず `components/` 配下のファイルに切り出す:
+
+- `useState` / `useEffect` などの React Hooks
+- ブラウザ API（`window`, `document`, `navigator` 等）
+- イベントハンドラ（`onClick`, `onChange` 等）
+- Mapbox GL JS などのブラウザ専用ライブラリ
+
+---
 
 ### 4.3 バックエンド（Supabase）
 

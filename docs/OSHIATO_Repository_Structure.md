@@ -540,6 +540,7 @@ Thumbs.db
 
 - [ ] `app/`配下に適切なディレクトリ構造を作成したか
 - [ ] `page.tsx`ファイルを作成したか
+- [ ] `page.tsx` に `'use client'` を直接書いていないか（Client Componentは `components/` に切り出す）
 - [ ] Sitemap_v5_1.mdを更新したか
 
 ### 12.3 API追加時
