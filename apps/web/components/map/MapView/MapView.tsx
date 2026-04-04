@@ -56,8 +56,9 @@ export default function MapView() {
     }
 
     // ② スポット一覧を取得（PostGIS の GEOGRAPHY 型は WKB で返るため、RPC で座標を数値として取得）
+    type SpotRow = { id: string; lng: number; lat: number; address: string | null };
     const { data: spots, error: spotsError } = await supabase
-      .rpc('get_spots_with_coords');
+      .rpc('get_spots_with_coords') as unknown as { data: SpotRow[] | null; error: Error | null };
 
     if (spotsError || !spots || spots.length === 0) {
       console.log('[MapView] spots が空またはエラー:', spotsError);
@@ -105,7 +106,7 @@ export default function MapView() {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    spots.forEach((spot: { id: string; lng: number; lat: number; address: string | null }) => {
+    spots.forEach((spot) => {
       const coords: [number, number] = [spot.lng, spot.lat];
       if (!coords[0] || !coords[1]) return;
 
