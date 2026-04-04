@@ -804,6 +804,32 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
+### 7.2 スポット座標取得ファンクション
+
+マップ表示用。`GEOGRAPHY` 型は `.select()` で WKB（バイナリ）が返るため、`ST_X()` / `ST_Y()` で数値として取得する。
+
+```sql
+CREATE OR REPLACE FUNCTION get_spots_with_coords()
+RETURNS TABLE (
+  id UUID,
+  lng DOUBLE PRECISION,
+  lat DOUBLE PRECISION,
+  address TEXT
+)
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT
+    id,
+    ST_X(location::geometry) AS lng,
+    ST_Y(location::geometry) AS lat,
+    address
+  FROM spots;
+$$;
+```
+
+**使用箇所**: `MapView.tsx` — `supabase.rpc('get_spots_with_coords')` で呼び出し
+
 ---
 
 ## 8. データ型選定理由

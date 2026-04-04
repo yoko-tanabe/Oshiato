@@ -17,6 +17,7 @@
 | バージョン | 日付 | 変更内容 |
 |------------|------|----------|
 | v1.0 | 2026/03 | 初版作成 |
+| v1.1 | 2026/04 | Storage RLSポリシー設定手順を追加（4.1.4） |
 
 ---
 
@@ -179,6 +180,24 @@ npm install
 1. 「SQL Editor」を開く
 2. `supabase/migrations/00001_initial.sql` の内容をコピー＆実行
 3. 「Run」をクリック
+
+#### 4.1.4 Storage バケットのRLSポリシー設定
+
+投稿画像のアップロードを許可するため、以下のSQLを「SQL Editor」で実行する。
+
+```sql
+-- post-images バケットへの匿名アップロードを許可
+CREATE POLICY "Allow anon uploads"
+ON storage.objects
+FOR INSERT
+TO anon
+WITH CHECK (bucket_id = 'post-images');
+```
+
+> **補足**: このアプリはPhase 1ではSupabase Auth（公式認証）を使わず、
+> device_idによる独自ユーザー管理を行っている。そのため `anon` ロールに
+> アップロード権限を付与する必要がある。Phase 3で本認証に移行する際は
+> このポリシーを `auth.uid()` ベースに変更する。
 
 ### 4.2 Mapbox
 

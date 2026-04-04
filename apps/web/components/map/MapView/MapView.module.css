@@ -9,21 +9,20 @@
   height: 100%;
 }
 
-/* スポットピン */
+/* スポットピン（推し色は --oshi-color で動的に設定） */
 .pin {
-  width: 42px;
-  height: 42px;
-  background: #333333;
+  width: 14px;
+  height: 14px;
+  background: var(--oshi-color, #aaaaaa);
   border-radius: 50%;
-  border: 3px solid #0d0d0d;
+  border: none;
   cursor: pointer;
-  transition: transform var(--transition-fast), background var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .pin:hover {
-  background: #c4b5fd;
   transform: scale(1.1);
-  box-shadow: 0 4px 16px rgba(196, 181, 253, 0.35);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--oshi-color, #c4b5fd) 50%, transparent);
 }
 
 /* 現在地ボタン */
@@ -37,7 +36,7 @@
   align-items: center;
   justify-content: center;
   background: #232323;
-  border: 1px solid #333333;
+  border: 1px solid #aaaaaa;
   border-radius: var(--radius-md);
   color: #ffffff;
   box-shadow: var(--shadow-md);

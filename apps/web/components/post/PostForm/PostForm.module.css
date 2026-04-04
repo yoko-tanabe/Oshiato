@@ -1,0 +1,157 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px 16px 40px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+/* EXIF情報メッセージ */
+.exifNote {
+  font-size: 12px;
+  color: #4ade80;
+  margin: 0;
+}
+
+.exifWarn {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* 推し選択 */
+.oshiGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.oshiButton {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px solid var(--color-border);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.oshiButtonActive {
+  border-color: var(--oshi-color, var(--color-primary));
+  background-color: color-mix(in srgb, var(--oshi-color, var(--color-primary)) 20%, transparent);
+  color: var(--oshi-color, var(--color-primary));
+}
+
+.emptyNote {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* カテゴリ */
+.categoryGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.categoryButton {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.categoryButtonActive {
+  border-color: var(--color-primary);
+  background-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
+}
+
+/* コメント */
+.textarea {
+  width: 100%;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  padding: 12px;
+  resize: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.charCount {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-align: right;
+  margin: 0;
+}
+
+/* エラー */
+.error {
+  font-size: 13px;
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0;
+}
+
+/* 投稿ボタン */
+.submitButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background-color: var(--color-primary);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

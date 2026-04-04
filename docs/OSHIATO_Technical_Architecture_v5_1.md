@@ -389,8 +389,8 @@
 | | TanStack Query | 5.x | サーバー状態 |
 | **フォーム** | React Hook Form | 7.x | フォーム |
 | | Zod | 3.x | バリデーション |
-| **画像処理** | exifr | 7.x | EXIF情報抽出 |
-| | browser-image-compression | 2.x | 画像圧縮・リサイズ |
+| **画像処理** | exifr | 7.x | EXIF情報抽出（GPS・撮影日時） |
+| | heic-decode | 2.x | HEIC形式デコード（Chrome等非対応ブラウザ向け） |
 | **Supabase** | @supabase/supabase-js | 2.x | バックエンド連携 |
 
 ### 4.2 iOS版（Swift）
