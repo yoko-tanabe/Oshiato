@@ -1,7 +1,21 @@
+import PostForm from '@/components/post/PostForm/PostForm';
+
 export default function PostNewPage() {
   return (
-    <main style={{ padding: "24px", color: "var(--color-text-primary)" }}>
-      <h1>スポット投稿（Step 5 で実装予定）</h1>
+    <main>
+      <header style={{
+        padding: '16px',
+        borderBottom: '1px solid var(--color-border)',
+        position: 'sticky',
+        top: 0,
+        backgroundColor: 'var(--color-background)',
+        zIndex: 10,
+      }}>
+        <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+          推しスポットを投稿
+        </h1>
+      </header>
+      <PostForm />
     </main>
   );
 }
