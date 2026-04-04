@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
 import ImagePicker from '../ImagePicker/ImagePicker';
+import LocationPicker from '../LocationPicker/LocationPicker';
 import { extractExif, type ExifData } from '@/lib/exif/extractExif';
 import { processImage } from '@/lib/image/processImage';
 import { findOrCreateSpot } from '@/lib/supabase/spots';
@@ -39,6 +40,8 @@ export default function PostForm() {
   const [selectedOshiId, setSelectedOshiId] = useState<string>('');
   const [category, setCategory] = useState<Category>('ooh');
   const [comment, setComment] = useState('');
+  const [manualLat, setManualLat] = useState<number | null>(null);
+  const [manualLng, setManualLng] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,15 +99,14 @@ export default function PostForm() {
     setIsSubmitting(true);
 
     try {
-      // 1. EXIF座標からスポットを探すか作成
+      // 1. EXIF座標 or 手動指定座標からスポットを探すか作成
       const firstExif = exifList.find((e) => e !== null) ?? null;
-      const spotId = await findOrCreateSpot(
-        firstExif?.lat ?? null,
-        firstExif?.lng ?? null
-      );
+      const lat = firstExif?.lat ?? manualLat;
+      const lng = firstExif?.lng ?? manualLng;
+      const spotId = await findOrCreateSpot(lat, lng);
 
       if (!spotId) {
-        setError('位置情報を取得できませんでした。GPS情報付きの写真を使用するか、再度お試しください');
+        setError('位置情報を取得できませんでした。住所検索または地図タップで場所を指定してください');
         setIsSubmitting(false);
         return;
       }
@@ -172,15 +174,15 @@ export default function PostForm() {
       if (imgRowError) throw new Error(`画像情報保存失敗: ${imgRowError.message}`);
 
       // 5. 訪問ログに記録（軌跡マップ用データ。失敗しても投稿は成功扱い）
-      if (firstExif?.lat && firstExif?.lng) {
+      if (lat && lng) {
         try {
           await supabase.from('visit_logs').insert({
             user_id: userId,
             spot_id: spotId,
             oshi_id: selectedOshiId,
-            location: `POINT(${firstExif.lng} ${firstExif.lat})`,
-            visited_at: firstExif.takenAt ?? new Date().toISOString(),
-            source: 'exif' as const,
+            location: `POINT(${lng} ${lat})`,
+            visited_at: firstExif?.takenAt ?? new Date().toISOString(),
+            source: firstExif ? ('exif' as const) : ('manual' as const),
           });
         } catch (visitError) {
           console.warn('visit_logs挿入スキップ:', visitError);
@@ -206,7 +208,15 @@ export default function PostForm() {
           <p className={styles.exifNote}>📍 GPS情報を取得しました</p>
         )}
         {images.length > 0 && exifList.every((e) => e === null) && (
-          <p className={styles.exifWarn}>⚠️ GPS情報なし（位置情報付き写真を使うと自動でスポット登録されます）</p>
+          <>
+            <p className={styles.exifWarn}>⚠️ GPS情報なし — 下の地図で場所を指定してください</p>
+            <LocationPicker
+              onLocationSelect={(lat, lng) => {
+                setManualLat(lat);
+                setManualLng(lng);
+              }}
+            />
+          </>
         )}
       </section>
 
