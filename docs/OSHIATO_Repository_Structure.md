@@ -235,6 +235,11 @@ apps/web/
 │   │   ├── PostForm.tsx
 │   │   └── PostForm.module.css
 │   │
+│   ├── timeline/                 # タイムライン関連
+│   │   └── TimelineGrid/
+│   │       ├── TimelineGrid.tsx
+│   │       └── TimelineGrid.module.css
+│   │
 │   ├── oshi/                    # 推し関連
 │   │   ├── OshiSelector.tsx
 │   │   └── OshiSelector.module.css
