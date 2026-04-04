@@ -5,7 +5,6 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { LocateFixed } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
-import type { Database } from '@/lib/supabase/database.types';
 import styles from './MapView.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -14,24 +13,46 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 const DEFAULT_CENTER: [number, number] = [139.6917, 35.6895];
 const DEFAULT_ZOOM = 13;
 
-type Spot = Database['public']['Tables']['spots']['Row'];
+// Supabase JOIN クエリの戻り値型
+type SpotWithPosts = {
+  id: string;
+  location: string;
+  address: string | null;
+  posts: {
+    id: string;
+    oshis: { id: string; name: string; color: string } | null;
+    post_images: { image_url: string; order: number }[];
+  }[];
+};
 
 export default function MapView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const popupsRef = useRef<mapboxgl.Popup[]>([]);
   const [isLocating, setIsLocating] = useState(false);
 
   // Supabaseからスポットを取得してピンを描画
   const loadSpots = useCallback(async (map: mapboxgl.Map) => {
     const { data: spots, error } = await supabase
       .from('spots')
-      .select('*')
-      .returns<Spot[]>();
+      .select(`
+        id,
+        location,
+        address,
+        posts (
+          id,
+          oshis ( id, name, color ),
+          post_images ( image_url, order )
+        )
+      `)
+      .returns<SpotWithPosts[]>();
 
     if (error || !spots) return;
 
-    // 既存マーカーを削除
+    // 既存マーカー・ポップアップを削除
+    popupsRef.current.forEach((p) => p.remove());
+    popupsRef.current = [];
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
@@ -40,14 +61,33 @@ export default function MapView() {
       const coords = parsePoint(spot.location);
       if (!coords) return;
 
+      // 最初の投稿の推し色・推し名・サムネイルを取得
+      const firstPost = spot.posts?.[0] ?? null;
+      const oshiColor = firstPost?.oshis?.color ?? '#333333';
+      const oshiName = firstPost?.oshis?.name ?? null;
+      const thumbnail = firstPost?.post_images
+        ?.slice()
+        .sort((a, b) => a.order - b.order)[0]?.image_url ?? null;
+      const postCount = spot.posts?.length ?? 0;
+
+      // マーカー要素を作成（推し色を CSS カスタムプロパティで渡す）
       const el = document.createElement('div');
       el.className = styles.pin;
+      el.style.setProperty('--oshi-color', oshiColor);
+
+      // ポップアップ HTML を組み立て
+      const popupHtml = buildPopupHtml({ spot, oshiColor, oshiName, thumbnail, postCount });
+
+      const popup = new mapboxgl.Popup({ offset: 12, closeButton: false })
+        .setHTML(popupHtml);
 
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat(coords)
+        .setPopup(popup)
         .addTo(map);
 
       markersRef.current.push(marker);
+      popupsRef.current.push(popup);
     });
   }, []);
 
@@ -70,6 +110,7 @@ export default function MapView() {
     });
 
     return () => {
+      popupsRef.current.forEach((p) => p.remove());
       markersRef.current.forEach((m) => m.remove());
       map.remove();
       mapRef.current = null;
@@ -127,4 +168,49 @@ function parsePoint(location: string): [number, number] | null {
   }
 
   return null;
+}
+
+// HTML特殊文字をエスケープ（XSS対策）
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ポップアップのHTML文字列を組み立て
+function buildPopupHtml(params: {
+  spot: SpotWithPosts;
+  oshiColor: string;
+  oshiName: string | null;
+  thumbnail: string | null;
+  postCount: number;
+}): string {
+  const { spot, oshiColor, oshiName, thumbnail, postCount } = params;
+
+  // oshi color は DB 由来だが CSS color 値として使うため英数字・#のみ許可
+  const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(oshiColor) ? oshiColor : '#333333';
+
+  const thumbHtml = thumbnail
+    ? `<img src="${escapeHtml(thumbnail)}" alt="スポット写真" class="spot-popup-thumb" />`
+    : `<div class="spot-popup-thumb spot-popup-thumb--empty" style="background:${safeColor}22;"></div>`;
+
+  const addressText = escapeHtml(spot.address ?? '住所不明');
+  const oshiBadge = oshiName
+    ? `<span class="spot-popup-oshi" style="background:${safeColor}33;color:${safeColor};">${escapeHtml(oshiName)}</span>`
+    : '';
+  const countText = `${postCount}件の投稿`;
+
+  return `
+    <div class="spot-popup">
+      ${thumbHtml}
+      <div class="spot-popup-body">
+        ${oshiBadge}
+        <p class="spot-popup-address">${addressText}</p>
+        <p class="spot-popup-count">${countText}</p>
+      </div>
+    </div>
+  `;
 }
