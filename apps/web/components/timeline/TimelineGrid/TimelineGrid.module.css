@@ -1,0 +1,86 @@
+/* タイムライン：月別写真グリッド */
+
+.wrapper {
+  padding: var(--space-2) var(--space-2) var(--space-16);
+}
+
+/* 月ヘッダー（例: 2026年4月） */
+.monthHeader {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-accent-primary);
+  padding: var(--space-4) var(--space-1) var(--space-2);
+}
+
+/* 写真グリッド：3列（モバイル） */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+@media (min-width: 600px) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* 各タイル：正方形 */
+.tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+}
+
+.tileImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 日付オーバーレイ（タイル右下） */
+.dateOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-4) var(--space-2) var(--space-1);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  text-align: right;
+}
+
+/* ローディング */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+/* 投稿なし */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  text-align: center;
+  gap: var(--space-2);
+}
