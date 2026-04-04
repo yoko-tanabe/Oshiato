@@ -5,6 +5,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { LocateFixed } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { getOrCreateUser } from '@/lib/user/getOrCreateUser';
 import styles from './MapView.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -12,18 +13,6 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 // 東京を初期表示
 const DEFAULT_CENTER: [number, number] = [139.6917, 35.6895];
 const DEFAULT_ZOOM = 13;
-
-// Supabase JOIN クエリの戻り値型
-type SpotWithPosts = {
-  id: string;
-  location: string;
-  address: string | null;
-  posts: {
-    id: string;
-    oshis: { id: string; name: string; color: string } | null;
-    post_images: { image_url: string; order: number }[];
-  }[];
-};
 
 export default function MapView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -34,21 +23,81 @@ export default function MapView() {
 
   // Supabaseからスポットを取得してピンを描画
   const loadSpots = useCallback(async (map: mapboxgl.Map) => {
-    const { data: spots, error } = await supabase
-      .from('spots')
-      .select(`
-        id,
-        location,
-        address,
-        posts (
-          id,
-          oshis ( id, name, color ),
-          post_images ( image_url, order )
-        )
-      `)
-      .returns<SpotWithPosts[]>();
+    // ① 現在のユーザーの推し色・推し名マップを取得
+    const oshiColorMap = new Map<string, string>();
+    const oshiNameMap = new Map<string, string>();
+    try {
+      const userId = await getOrCreateUser();
 
-    if (error || !spots) return;
+      // user_oshis から oshi_id と theme_color を取得
+      const { data: userOshis } = await supabase
+        .from('user_oshis')
+        .select('oshi_id, theme_color')
+        .eq('user_id', userId);
+
+      if (userOshis && userOshis.length > 0) {
+        userOshis.forEach((row) => {
+          oshiColorMap.set(row.oshi_id, row.theme_color);
+        });
+
+        // oshis テーブルから名前を取得（FKネストを使わず個別クエリ）
+        const oshiIds = userOshis.map((row) => row.oshi_id);
+        const { data: oshiRows } = await supabase
+          .from('oshis')
+          .select('id, name')
+          .in('id', oshiIds);
+
+        oshiRows?.forEach((o) => {
+          oshiNameMap.set(o.id, o.name);
+        });
+      }
+    } catch {
+      // ユーザー取得失敗時はデフォルト色にフォールバック
+    }
+
+    // ② スポット一覧を取得（PostGIS の GEOGRAPHY 型は WKB で返るため、RPC で座標を数値として取得）
+    const { data: spots, error: spotsError } = await supabase
+      .rpc('get_spots_with_coords');
+
+    if (spotsError || !spots || spots.length === 0) {
+      console.log('[MapView] spots が空またはエラー:', spotsError);
+      return;
+    }
+
+    console.log('[MapView] spots:', spots);
+
+    const spotIds = spots.map((s) => s.id);
+
+    // ③ 該当スポットの投稿を一括取得
+    const { data: posts } = await supabase
+      .from('posts')
+      .select('id, spot_id, oshi_id')
+      .in('spot_id', spotIds)
+      .eq('status', 'active');
+
+    // ④ 先頭画像（display_order=0）を一括取得
+    const postIds = posts?.map((p) => p.id) ?? [];
+    const { data: images } = postIds.length > 0
+      ? await supabase
+          .from('post_images')
+          .select('post_id, image_url, display_order')
+          .in('post_id', postIds)
+          .eq('display_order', 0)
+      : { data: [] as { post_id: string; image_url: string; display_order: number }[] };
+
+    // spot_id → posts のマップ
+    const postsBySpot = new Map<string, { id: string; oshi_id: string }[]>();
+    posts?.forEach((p) => {
+      const list = postsBySpot.get(p.spot_id) ?? [];
+      list.push({ id: p.id, oshi_id: p.oshi_id });
+      postsBySpot.set(p.spot_id, list);
+    });
+
+    // post_id → image_url のマップ
+    const thumbByPost = new Map<string, string>();
+    images?.forEach((img) => {
+      thumbByPost.set(img.post_id, img.image_url);
+    });
 
     // 既存マーカー・ポップアップを削除
     popupsRef.current.forEach((p) => p.remove());
@@ -56,19 +105,16 @@ export default function MapView() {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    spots.forEach((spot) => {
-      // GEOGRAPHY型は "POINT(lng lat)" 形式で返ってくる場合があるためパース
-      const coords = parsePoint(spot.location);
-      if (!coords) return;
+    spots.forEach((spot: { id: string; lng: number; lat: number; address: string | null }) => {
+      const coords: [number, number] = [spot.lng, spot.lat];
+      if (!coords[0] || !coords[1]) return;
 
-      // 最初の投稿の推し色・推し名・サムネイルを取得
-      const firstPost = spot.posts?.[0] ?? null;
-      const oshiColor = firstPost?.oshis?.color ?? '#333333';
-      const oshiName = firstPost?.oshis?.name ?? null;
-      const thumbnail = firstPost?.post_images
-        ?.slice()
-        .sort((a, b) => a.order - b.order)[0]?.image_url ?? null;
-      const postCount = spot.posts?.length ?? 0;
+      const spotPosts = postsBySpot.get(spot.id) ?? [];
+      const firstPost = spotPosts[0] ?? null;
+      const oshiColor = firstPost ? (oshiColorMap.get(firstPost.oshi_id) ?? '#aaaaaa') : '#aaaaaa';
+      const oshiName = firstPost ? (oshiNameMap.get(firstPost.oshi_id) ?? null) : null;
+      const thumbnail = firstPost ? (thumbByPost.get(firstPost.id) ?? null) : null;
+      const postCount = spotPosts.length;
 
       // マーカー要素を作成（推し色を CSS カスタムプロパティで渡す）
       const el = document.createElement('div');
@@ -76,7 +122,13 @@ export default function MapView() {
       el.style.setProperty('--oshi-color', oshiColor);
 
       // ポップアップ HTML を組み立て
-      const popupHtml = buildPopupHtml({ spot, oshiColor, oshiName, thumbnail, postCount });
+      const popupHtml = buildPopupHtml({
+        address: spot.address,
+        oshiColor,
+        oshiName,
+        thumbnail,
+        postCount,
+      });
 
       const popup = new mapboxgl.Popup({ offset: 12, closeButton: false })
         .setHTML(popupHtml);
@@ -151,25 +203,6 @@ export default function MapView() {
   );
 }
 
-// "POINT(lng lat)" または GeoJSON 形式から [lng, lat] を取得
-function parsePoint(location: string): [number, number] | null {
-  // WKT形式: POINT(139.69 35.68)
-  const wkt = location.match(/POINT\(([^ ]+) ([^ )]+)\)/);
-  if (wkt) return [parseFloat(wkt[1]), parseFloat(wkt[2])];
-
-  // GeoJSON形式: {"type":"Point","coordinates":[lng,lat]}
-  try {
-    const geo = JSON.parse(location);
-    if (geo?.coordinates?.length === 2) {
-      return [geo.coordinates[0], geo.coordinates[1]];
-    }
-  } catch {
-    // パース失敗は無視
-  }
-
-  return null;
-}
-
 // HTML特殊文字をエスケープ（XSS対策）
 function escapeHtml(str: string): string {
   return str
@@ -182,22 +215,22 @@ function escapeHtml(str: string): string {
 
 // ポップアップのHTML文字列を組み立て
 function buildPopupHtml(params: {
-  spot: SpotWithPosts;
+  address: string | null;
   oshiColor: string;
   oshiName: string | null;
   thumbnail: string | null;
   postCount: number;
 }): string {
-  const { spot, oshiColor, oshiName, thumbnail, postCount } = params;
+  const { address, oshiColor, oshiName, thumbnail, postCount } = params;
 
-  // oshi color は DB 由来だが CSS color 値として使うため英数字・#のみ許可
-  const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(oshiColor) ? oshiColor : '#333333';
+  // oshi color は DB 由来だが CSS color 値として使うため #RRGGBB のみ許可
+  const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(oshiColor) ? oshiColor : '#aaaaaa';
 
   const thumbHtml = thumbnail
     ? `<img src="${escapeHtml(thumbnail)}" alt="スポット写真" class="spot-popup-thumb" />`
     : `<div class="spot-popup-thumb spot-popup-thumb--empty" style="background:${safeColor}22;"></div>`;
 
-  const addressText = escapeHtml(spot.address ?? '住所不明');
+  const addressText = escapeHtml(address ?? '住所不明');
   const oshiBadge = oshiName
     ? `<span class="spot-popup-oshi" style="background:${safeColor}33;color:${safeColor};">${escapeHtml(oshiName)}</span>`
     : '';

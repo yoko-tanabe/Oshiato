@@ -11,11 +11,11 @@
 
 /* スポットピン（推し色は --oshi-color で動的に設定） */
 .pin {
-  width: 42px;
-  height: 42px;
-  background: var(--oshi-color, #333333);
+  width: 14px;
+  height: 14px;
+  background: var(--oshi-color, #aaaaaa);
   border-radius: 50%;
-  border: 3px solid #0d0d0d;
+  border: none;
   cursor: pointer;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -36,7 +36,7 @@
   align-items: center;
   justify-content: center;
   background: #232323;
-  border: 1px solid #333333;
+  border: 1px solid #aaaaaa;
   border-radius: var(--radius-md);
   color: #ffffff;
   box-shadow: var(--shadow-md);
