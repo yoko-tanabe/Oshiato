@@ -169,7 +169,23 @@ export default function PostForm() {
 
       if (imgRowError) throw new Error(`画像情報保存失敗: ${imgRowError.message}`);
 
-      // 5. マップ画面へリダイレクト
+      // 5. 訪問ログに記録（軌跡マップ用データ。失敗しても投稿は成功扱い）
+      if (firstExif?.lat && firstExif?.lng) {
+        try {
+          await supabase.from('visit_logs').insert({
+            user_id: userId,
+            spot_id: spotId,
+            oshi_id: selectedOshiId,
+            location: `POINT(${firstExif.lng} ${firstExif.lat})`,
+            visited_at: firstExif.takenAt ?? new Date().toISOString(),
+            source: 'exif' as const,
+          });
+        } catch (visitError) {
+          console.warn('visit_logs挿入スキップ:', visitError);
+        }
+      }
+
+      // 6. マップ画面へリダイレクト
       router.push('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : '投稿に失敗しました');

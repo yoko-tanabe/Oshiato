@@ -1490,3 +1490,4 @@ async function getPostsWithCursor(params: CursorParams) {
 ---
 
 **OSHIATO API定義書 v5.1**
+
