@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Camera } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { useCurrentUser } from '@/lib/user/useCurrentUser';
+import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
+import EmptyState from '@/components/ui/EmptyState/EmptyState';
 import styles from './TimelineGrid.module.css';
 
 /* ---------- 型定義 ---------- */
@@ -51,6 +54,7 @@ function formatDate(dateStr: string): string {
 /* ---------- コンポーネント ---------- */
 
 export default function TimelineGrid() {
+  const router = useRouter();
   const { userId, isLoading: isUserLoading } = useCurrentUser();
   const [monthGroups, setMonthGroups] = useState<MonthGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -118,20 +122,19 @@ export default function TimelineGrid() {
 
   /* --- ローディング --- */
   if (isLoading || isUserLoading) {
-    return (
-      <div className={styles.loading}>
-        <Loader2 size={24} strokeWidth={1.5} style={{ animation: 'spin 1s linear infinite' }} />
-      </div>
-    );
+    return <LoadingSpinner size="large" />;
   }
 
   /* --- 投稿なし --- */
   if (monthGroups.length === 0) {
     return (
-      <div className={styles.empty}>
-        <p>まだ投稿がありません</p>
-        <p>写真を投稿すると、ここに表示されます</p>
-      </div>
+      <EmptyState
+        icon={<Camera size={48} strokeWidth={1.5} />}
+        message="まだ投稿がありません"
+        description="写真を投稿すると、ここに表示されます"
+        actionLabel="投稿する"
+        onAction={() => router.push('/post/new')}
+      />
     );
   }
 
@@ -149,6 +152,9 @@ export default function TimelineGrid() {
                   src={post.imageUrl}
                   alt={post.oshiName ?? '投稿写真'}
                   loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
                 <div className={styles.dateOverlay}>
                   {formatDate(post.takenAt ?? post.createdAt)}

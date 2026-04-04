@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito, Zen_Maru_Gothic } from "next/font/google";
 import AppShell from "@/components/layout/AppShell/AppShell";
+import ToastProvider from "@/components/ui/Toast/ToastProvider";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -28,7 +29,9 @@ export default function RootLayout({
   return (
     <html lang="ja" className={`${nunito.variable} ${zenMaruGothic.variable}`}>
       <body>
-        <AppShell>{children}</AppShell>
+        <ToastProvider>
+          <AppShell>{children}</AppShell>
+        </ToastProvider>
       </body>
     </html>
   );

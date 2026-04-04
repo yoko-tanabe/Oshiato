@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast/ToastProvider';
 import ImagePicker from '../ImagePicker/ImagePicker';
 import { extractExif, type ExifData } from '@/lib/exif/extractExif';
 import { processImage } from '@/lib/image/processImage';
@@ -30,6 +31,7 @@ interface OshiOption {
 export default function PostForm() {
   const router = useRouter();
   const { userId } = useCurrentUser();
+  const { showToast } = useToast();
 
   const [images, setImages] = useState<File[]>([]);
   const [exifList, setExifList] = useState<(ExifData | null)[]>([]);
@@ -185,7 +187,8 @@ export default function PostForm() {
         }
       }
 
-      // 6. マップ画面へリダイレクト
+      // 6. 成功通知 → マップ画面へリダイレクト
+      showToast('success', '投稿しました');
       router.push('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : '投稿に失敗しました');

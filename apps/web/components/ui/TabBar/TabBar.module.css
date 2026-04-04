@@ -26,9 +26,25 @@
 }
 
 .label {
-  font-size: 9px;
-  color: #444444;
+  font-size: 11px;
+  color: #808080;
   font-family: var(--font-body);
+}
+
+.tabActive {
+  position: relative;
+}
+
+.tabActive::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: #c4b5fd;
+  border-radius: var(--radius-full);
 }
 
 .tabActive .label {
