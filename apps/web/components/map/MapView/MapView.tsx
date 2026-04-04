@@ -6,6 +6,9 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { LocateFixed } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { getOrCreateUser } from '@/lib/user/getOrCreateUser';
+import { performCheckIn } from '@/lib/supabase/checkins';
+import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
+import { useToast } from '@/components/ui/Toast/ToastProvider';
 import styles from './MapView.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -20,6 +23,8 @@ export default function MapView() {
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const { showToast } = useToast();
 
   // Supabaseからスポットを取得してピンを描画
   const loadSpots = useCallback(async (map: mapboxgl.Map) => {
@@ -61,11 +66,8 @@ export default function MapView() {
       .rpc('get_spots_with_coords') as unknown as { data: SpotRow[] | null; error: Error | null };
 
     if (spotsError || !spots || spots.length === 0) {
-      console.log('[MapView] spots が空またはエラー:', spotsError);
       return;
     }
-
-    console.log('[MapView] spots:', spots);
 
     const spotIds = spots.map((s) => s.id);
 
@@ -124,11 +126,15 @@ export default function MapView() {
 
       // ポップアップ HTML を組み立て
       const popupHtml = buildPopupHtml({
+        spotId: spot.id,
         address: spot.address,
         oshiColor,
         oshiName,
+        oshiId: firstPost?.oshi_id ?? null,
         thumbnail,
         postCount,
+        spotLat: spot.lat,
+        spotLng: spot.lng,
       });
 
       const popup = new mapboxgl.Popup({ offset: 12, closeButton: false })
@@ -159,6 +165,7 @@ export default function MapView() {
 
     // 地図の読み込み完了後にスポットを取得
     map.on('load', () => {
+      setIsMapLoaded(true);
       loadSpots(map);
     });
 
@@ -169,6 +176,66 @@ export default function MapView() {
       mapRef.current = null;
     };
   }, [loadSpots]);
+
+  // ポップアップ内チェックインボタンのイベント委譲
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    async function handleCheckinClick(e: MouseEvent) {
+      const btn = (e.target as HTMLElement).closest('.spot-popup-checkin') as HTMLElement | null;
+      if (!btn) return;
+
+      const spotId = btn.dataset.spotId;
+      const oshiId = btn.dataset.oshiId;
+      const spotLat = Number(btn.dataset.lat);
+      const spotLng = Number(btn.dataset.lng);
+      if (!spotId || !oshiId) return;
+
+      btn.textContent = '処理中...';
+      btn.setAttribute('disabled', 'true');
+
+      try {
+        const userId = await getOrCreateUser();
+
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const result = await performCheckIn({
+              userId,
+              spotId,
+              oshiId,
+              spotLat,
+              spotLng,
+              userLat: pos.coords.latitude,
+              userLng: pos.coords.longitude,
+            });
+
+            if (result.success) {
+              btn.textContent = 'チェックイン済み';
+              btn.classList.add('spot-popup-checkin--done');
+              showToast('success', 'チェックインしました');
+            } else {
+              btn.textContent = 'チェックイン';
+              btn.removeAttribute('disabled');
+              showToast('error', result.error ?? 'チェックインに失敗しました');
+            }
+          },
+          () => {
+            btn.textContent = 'チェックイン';
+            btn.removeAttribute('disabled');
+            showToast('error', '位置情報を取得できませんでした');
+          },
+        );
+      } catch {
+        btn.textContent = 'チェックイン';
+        btn.removeAttribute('disabled');
+        showToast('error', 'エラーが発生しました');
+      }
+    }
+
+    container.addEventListener('click', handleCheckinClick);
+    return () => container.removeEventListener('click', handleCheckinClick);
+  }, [showToast]);
 
   // 現在地に移動
   function handleLocate() {
@@ -186,6 +253,7 @@ export default function MapView() {
       },
       () => {
         setIsLocating(false);
+        showToast('error', '位置情報を取得できませんでした');
       }
     );
   }
@@ -193,6 +261,11 @@ export default function MapView() {
   return (
     <div className={styles.wrapper}>
       <div ref={mapContainerRef} className={styles.map} />
+      {!isMapLoaded && (
+        <div className={styles.loadingOverlay}>
+          <LoadingSpinner size="large" />
+        </div>
+      )}
       <button
         className={`${styles.locateButton} ${isLocating ? styles.locating : ''}`}
         onClick={handleLocate}
@@ -216,13 +289,17 @@ function escapeHtml(str: string): string {
 
 // ポップアップのHTML文字列を組み立て
 function buildPopupHtml(params: {
+  spotId: string;
   address: string | null;
   oshiColor: string;
   oshiName: string | null;
+  oshiId: string | null;
   thumbnail: string | null;
   postCount: number;
+  spotLat: number;
+  spotLng: number;
 }): string {
-  const { address, oshiColor, oshiName, thumbnail, postCount } = params;
+  const { spotId, address, oshiColor, oshiName, oshiId, thumbnail, postCount, spotLat, spotLng } = params;
 
   // oshi color は DB 由来だが CSS color 値として使うため #RRGGBB のみ許可
   const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(oshiColor) ? oshiColor : '#aaaaaa';
@@ -237,6 +314,10 @@ function buildPopupHtml(params: {
     : '';
   const countText = `${postCount}件の投稿`;
 
+  const checkinBtn = oshiId
+    ? `<button class="spot-popup-checkin" data-spot-id="${escapeHtml(spotId)}" data-oshi-id="${escapeHtml(oshiId)}" data-lat="${spotLat}" data-lng="${spotLng}">チェックイン</button>`
+    : '';
+
   return `
     <div class="spot-popup">
       ${thumbHtml}
@@ -244,6 +325,7 @@ function buildPopupHtml(params: {
         ${oshiBadge}
         <p class="spot-popup-address">${addressText}</p>
         <p class="spot-popup-count">${countText}</p>
+        ${checkinBtn}
       </div>
     </div>
   `;

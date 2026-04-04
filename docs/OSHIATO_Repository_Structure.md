@@ -6,7 +6,7 @@
 
 | 項目 | 内容 |
 |------|------|
-| バージョン | v1.0 |
+| バージョン | v1.2 |
 | 作成日 | 2026年3月 |
 | 対応CLAUDE.md | v1.0 |
 
@@ -18,6 +18,7 @@
 |------------|------|----------|
 | v1.0 | 2026/03 | 初版作成 |
 | v1.1 | 2026/03/22 | `.claude/`, ルート `package.json`, `tsconfig.json` を追加 |
+| v1.2 | 2026/04/04 | `apps/web/` の components / lib 構造を実態に合わせて更新 |
 
 ---
 
@@ -198,86 +199,90 @@ apps/
 ```
 apps/web/
 ├── app/                         # App Router（ページ）
-│   ├── layout.tsx               # 共通レイアウト
+│   ├── layout.tsx               # 共通レイアウト（ToastProvider含む）
 │   ├── page.tsx                 # トップページ（マップ）
-│   ├── globals.css              # グローバルCSS
+│   ├── globals.css              # グローバルCSS + Mapboxポップアップスタイル
 │   │
 │   ├── spot/
 │   │   └── [id]/
-│   │       └── page.tsx         # スポット詳細
+│   │       └── page.tsx         # スポット詳細 → SpotDetail
 │   │
 │   ├── post/
 │   │   └── new/
-│   │       └── page.tsx         # 投稿作成
+│   │       └── page.tsx         # 投稿作成 → PostForm
 │   │
 │   ├── timeline/
-│   │   └── page.tsx             # タイムライン
+│   │   └── page.tsx             # タイムライン → TimelineGrid
 │   │
 │   ├── oshi/
-│   │   └── page.tsx             # 推し管理
+│   │   ├── page.tsx             # 推し管理（OshiCard + AddOshiForm）
+│   │   └── page.module.css
 │   │
 │   ├── visits/
-│   │   └── page.tsx             # 訪問ログ
+│   │   └── page.tsx             # 訪問ログ → VisitList
 │   │
 │   └── trajectory/
-│       └── page.tsx             # 軌跡マップ
+│       └── page.tsx             # 軌跡マップ → TrajectoryMap
 │
 ├── components/                  # 再利用可能なコンポーネント
+│   ├── layout/                  # レイアウト
+│   │   └── AppShell/            #   アプリ骨格（TabBar含む）
+│   │
 │   ├── map/                     # 地図関連
-│   │   ├── MapView.tsx
-│   │   ├── MapView.module.css
-│   │   ├── SpotPin.tsx
-│   │   └── SpotPin.module.css
+│   │   └── MapView/             #   Mapbox地図 + スポットピン + チェックイン
 │   │
 │   ├── post/                    # 投稿関連
-│   │   ├── PostCard.tsx
-│   │   ├── PostCard.module.css
-│   │   ├── PostForm.tsx
-│   │   └── PostForm.module.css
+│   │   ├── PostForm/            #   投稿フォーム
+│   │   └── ImagePicker/         #   画像選択
 │   │
-│   ├── timeline/                 # タイムライン関連
-│   │   └── TimelineGrid/
-│   │       ├── TimelineGrid.tsx
-│   │       └── TimelineGrid.module.css
+│   ├── spot/                    # スポット関連
+│   │   ├── SpotDetail/          #   スポット詳細ページ本体
+│   │   └── CheckInButton/       #   チェックインボタン（React版）
+│   │
+│   ├── timeline/                # タイムライン関連
+│   │   └── TimelineGrid/        #   月別写真グリッド
+│   │
+│   ├── trajectory/              # 軌跡関連
+│   │   └── TrajectoryMap/       #   軌跡マップ本体
 │   │
 │   ├── oshi/                    # 推し関連
-│   │   ├── OshiSelector.tsx
-│   │   └── OshiSelector.module.css
+│   │   ├── OshiCard/            #   推しカード表示
+│   │   └── AddOshiForm/         #   推し追加フォーム
+│   │
+│   ├── visits/                  # 訪問ログ関連
+│   │   └── VisitList/           #   訪問ログ一覧
 │   │
 │   └── ui/                      # 共通UI
-│       ├── Button.tsx
-│       ├── Button.module.css
-│       ├── Input.tsx
-│       ├── Input.module.css
-│       ├── Modal.tsx
-│       └── Modal.module.css
+│       ├── TabBar/              #   タブバー（5タブ）
+│       ├── EmptyState/          #   空状態表示（アイコン+メッセージ+CTA）
+│       ├── LoadingSpinner/      #   ローディングスピナー（S/M/L）
+│       └── Toast/               #   Toast通知（success/error/warning）
+│                                #     + ToastProvider（Context）
 │
 ├── lib/                         # ユーティリティ・サービス
-│   ├── supabase.ts              # Supabaseクライアント
-│   ├── exif.ts                  # EXIF処理
-│   ├── image.ts                 # 画像処理
-│   └── utils.ts                 # 汎用ユーティリティ
-│
-├── hooks/                       # カスタムフック
-│   ├── useSpots.ts              # スポット取得
-│   ├── usePosts.ts              # 投稿取得
-│   ├── useOshis.ts              # 推し取得
-│   └── useGeolocation.ts        # 位置情報取得
-│
-├── types/                       # 型定義
-│   ├── database.ts              # Supabase自動生成型
-│   ├── spot.ts                  # スポット関連型
-│   ├── post.ts                  # 投稿関連型
-│   └── oshi.ts                  # 推し関連型
+│   ├── supabase/                # Supabase関連
+│   │   ├── client.ts            #   クライアント初期化
+│   │   ├── server.ts            #   サーバーサイドクライアント
+│   │   ├── database.types.ts    #   DB型定義
+│   │   ├── spots.ts             #   スポット検索・作成ヘルパー
+│   │   └── checkins.ts          #   チェックイン実行・距離計算
+│   │
+│   ├── exif/
+│   │   └── extractExif.ts       #   EXIF抽出（GPS・撮影日時）
+│   │
+│   ├── image/
+│   │   └── processImage.ts      #   画像処理（WebP変換・リサイズ）
+│   │
+│   └── user/
+│       ├── getOrCreateUser.ts   #   匿名ユーザー取得/作成
+│       ├── useCurrentUser.ts    #   現在ユーザーフック
+│       └── index.ts             #   re-export
 │
 ├── public/                      # 静的ファイル
-│   ├── favicon.ico
-│   └── images/
-│       └── logo.svg
 │
 ├── package.json
 ├── tsconfig.json
-├── next.config.js
+├── next.config.ts
 └── .env.local                   # 環境変数（Git管理外）
 ```
 
@@ -286,10 +291,8 @@ apps/web/
 | ディレクトリ | 役割 |
 |-------------|------|
 | app/ | Next.js App Routerのページコンポーネント |
-| components/ | 再利用可能なUIコンポーネント |
-| lib/ | ユーティリティ関数、外部サービス連携 |
-| hooks/ | カスタムReactフック |
-| types/ | TypeScript型定義 |
+| components/ | 再利用可能なUIコンポーネント（機能別にグループ化） |
+| lib/ | ユーティリティ関数、外部サービス連携（機能別にサブディレクトリ） |
 | public/ | 静的ファイル（画像、フォントなど） |
 
 ### 7.2 ファイル配置ルール
@@ -302,31 +305,22 @@ apps/web/
 
 #### コンポーネント（components/）
 
-- **機能別にグループ化**: `map/`, `post/`, `oshi/`, `ui/`
-- **1コンポーネント = 1ファイル + 1CSSモジュール**:
+- **機能別にグループ化**: `map/`, `post/`, `spot/`, `oshi/`, `timeline/`, `trajectory/`, `visits/`, `ui/`, `layout/`
+- **1コンポーネント = 1ディレクトリ（tsx + module.css）**:
   ```
-  components/map/
+  components/map/MapView/
   ├── MapView.tsx
-  └── MapView.module.css
+  ├── MapView.module.css
+  └── MapView_dynamic.tsx    # （SSR無効ラッパー、必要な場合のみ）
   ```
-- **共通UI**: `ui/`に配置（Button, Input, Modalなど）
+- **共通UI**: `ui/`に配置（TabBar, EmptyState, LoadingSpinner, Toast）
+- **レイアウト**: `layout/`に配置（AppShell）
 
 #### ライブラリ（lib/）
 
-- **外部サービス連携**: `supabase.ts`, `mapbox.ts`
-- **ユーティリティ**: `exif.ts`, `image.ts`, `utils.ts`
-- **純粋関数のみ**: 副作用のない関数を配置
-
-#### フック（hooks/）
-
-- **命名**: `use{機能名}.ts`（例: useSpots.ts）
-- **1フック = 1ファイル**
-- **データ取得・状態管理**: Supabaseからのデータ取得など
-
-#### 型定義（types/）
-
-- **機能別に分割**: `spot.ts`, `post.ts`, `oshi.ts`
-- **Supabase生成型**: `database.ts`（自動生成）
+- **機能別にサブディレクトリ**: `supabase/`, `exif/`, `image/`, `user/`
+- **カスタムフックもlib内に配置**: `lib/user/useCurrentUser.ts`
+- **外部サービス連携**: `supabase/client.ts`, `supabase/checkins.ts`
 
 ---
 
@@ -562,4 +556,4 @@ Thumbs.db
 
 ---
 
-**OSHIATO リポジトリ構造定義書 v1.0**
+**OSHIATO リポジトリ構造定義書 v1.2**

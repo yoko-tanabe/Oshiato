@@ -48,7 +48,7 @@ export default function TabBar() {
             <Icon
               size={20}
               strokeWidth={1.5}
-              color={isActive ? '#C4B5FD' : '#444444'}
+              color={isActive ? '#C4B5FD' : '#808080'}
             />
             <span className={styles.label}>{tab.label}</span>
           </Link>

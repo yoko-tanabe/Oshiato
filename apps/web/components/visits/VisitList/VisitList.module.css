@@ -1,0 +1,132 @@
+.wrapper {
+  padding: var(--space-4) var(--space-4) var(--space-16);
+}
+
+/* サマリー */
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 var(--space-4);
+}
+
+.summaryItem {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.summaryItem strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-right: 2px;
+}
+
+.summaryDot {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-disabled);
+}
+
+/* 月ヘッダー */
+.monthHeader {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-accent-primary);
+  padding: var(--space-4) 0 var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: var(--space-2);
+}
+
+/* カードリスト */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+/* 訪問カード */
+.card {
+  display: block;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  transition: background var(--transition-fast);
+}
+
+.card:active {
+  background: var(--color-bg-tertiary);
+}
+
+/* カードヘッダー（推しドット + 名前 + ソースバッジ） */
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.oshiDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.oshiName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ソースバッジ */
+.sourceBadge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.source_exif {
+  background: rgba(196, 181, 253, 0.15);
+  color: var(--color-accent-primary);
+}
+
+.source_checkin {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--color-success);
+}
+
+.source_manual {
+  background: rgba(163, 163, 163, 0.15);
+  color: var(--color-text-secondary);
+}
+
+/* 住所 */
+.address {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+/* 日時 */
+.date {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--color-text-disabled);
+}

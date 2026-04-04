@@ -1,0 +1,48 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  min-height: 200px;
+}
+
+.icon {
+  color: var(--color-text-disabled);
+  margin-bottom: var(--space-3);
+  line-height: 0;
+}
+
+.message {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.description {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  max-width: 260px;
+}
+
+.action {
+  margin-top: var(--space-4);
+  background: var(--color-accent-primary);
+  color: #0d0d0d;
+  font-size: 13px;
+  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.action:hover {
+  background: var(--color-accent-primary-hover);
+}
+
+.action:active {
+  background: var(--color-accent-primary-active);
+}

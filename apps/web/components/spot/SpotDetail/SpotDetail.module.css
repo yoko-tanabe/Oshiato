@@ -1,0 +1,121 @@
+.wrapper {
+  padding: 0 0 var(--space-16);
+}
+
+/* ヘッダー */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--color-text-primary);
+  transition: color var(--transition-fast);
+}
+
+.backButton:active {
+  color: var(--color-accent-primary);
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* スポット情報 */
+.info {
+  padding: var(--space-4);
+}
+
+.address {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.oshiBadge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+}
+
+.visitCount {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* チェックイン */
+.checkinSection {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+/* セクションタイトル */
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+}
+
+/* 写真グリッド: 3列 */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 0 var(--space-4);
+}
+
+@media (min-width: 600px) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* 各タイル: 正方形 */
+.tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+}
+
+.tileImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 日付オーバーレイ */
+.dateOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-4) var(--space-2) var(--space-1);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  text-align: right;
+}

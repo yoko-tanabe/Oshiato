@@ -1,10 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Heart } from 'lucide-react';
 import { useCurrentUser } from '@/lib/user';
 import { supabase } from '@/lib/supabase/client';
 import OshiCard from '@/components/oshi/OshiCard/OshiCard';
 import AddOshiForm from '@/components/oshi/AddOshiForm/AddOshiForm';
+import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
+import EmptyState from '@/components/ui/EmptyState/EmptyState';
+import { useToast } from '@/components/ui/Toast/ToastProvider';
 import styles from './page.module.css';
 
 type OshiItem = {
@@ -25,6 +29,7 @@ export default function OshiPage() {
   const { userId, isLoading } = useCurrentUser();
   const [oshiList, setOshiList] = useState<OshiItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!userId) return;
@@ -49,14 +54,18 @@ export default function OshiPage() {
     return () => { cancelled = true; };
   }, [userId, refreshKey]);
 
-  if (isLoading) return null;
+  if (isLoading) return <LoadingSpinner size="large" />;
 
   return (
     <div className={styles.page}>
       <h1 className={styles.heading}>推し管理</h1>
 
       {oshiList.length === 0 ? (
-        <p className={styles.empty}>まだ推しが登録されていません</p>
+        <EmptyState
+          icon={<Heart size={48} strokeWidth={1.5} />}
+          message="まだ推しが登録されていません"
+          description="下のフォームから推しを追加しましょう"
+        />
       ) : (
         <ul className={styles.list}>
           {oshiList.map((item) => (
@@ -74,7 +83,10 @@ export default function OshiPage() {
       {userId && (
         <AddOshiForm
           userId={userId}
-          onAdded={() => setRefreshKey((k) => k + 1)}
+          onAdded={() => {
+            setRefreshKey((k) => k + 1);
+            showToast('success', '推しを追加しました');
+          }}
         />
       )}
     </div>

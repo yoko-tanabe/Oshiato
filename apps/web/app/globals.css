@@ -214,3 +214,35 @@ h6 {
   color: #a3a3a3;
   margin: 0;
 }
+
+/* チェックインボタン */
+.spot-popup-checkin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #c4b5fd;
+  color: #0d0d0d;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.spot-popup-checkin:hover {
+  background: #a78bfa;
+}
+
+.spot-popup-checkin[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.spot-popup-checkin--done {
+  background: transparent;
+  color: #4ade80;
+  cursor: default;
+}
