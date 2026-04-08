@@ -34,6 +34,40 @@ function isHeic(file: File): boolean {
  * HEICファイルはまずブラウザのネイティブ対応を試み、
  * 失敗した場合のみ heic2any でJPEGに変換してから処理する
  */
+/**
+ * プレビュー用: ブラウザで表示できないHEIC等をJPEGのblob URLに変換する。
+ * 表示可能な形式ならそのままcreateObjectURLを返す。
+ */
+export async function createPreviewUrl(file: File): Promise<string> {
+  const blobUrl = URL.createObjectURL(file);
+
+  // まず通常の img で読み込めるか試す
+  const canDisplay = await new Promise<boolean>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = blobUrl;
+  });
+
+  if (canDisplay) return blobUrl;
+
+  // 表示できない場合（HEIC等）→ デコードしてプレビュー用blob URLを生成
+  URL.revokeObjectURL(blobUrl);
+  try {
+    let imageBitmap: ImageBitmap;
+    if (isHeic(file)) {
+      imageBitmap = await convertHeicToImageBitmap(file);
+    } else {
+      return ''; // HEIC以外で表示不可 → フォールバック
+    }
+    const previewBlob = await resizeAndConvert(imageBitmap, 400, 0.7);
+    imageBitmap.close();
+    return URL.createObjectURL(previewBlob);
+  } catch {
+    return ''; // 変換失敗 → フォールバック
+  }
+}
+
 export async function processImage(file: File): Promise<ProcessedImage> {
   let imageBitmap: ImageBitmap;
 

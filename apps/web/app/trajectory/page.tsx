@@ -1,5 +1,5 @@
-import { TrajectoryMap_dynamic } from '@/components/trajectory/TrajectoryMap/TrajectoryMap_dynamic';
+import TrajectoryTabs from '@/components/trajectory/TrajectoryTabs/TrajectoryTabs';
 
 export default function TrajectoryPage() {
-  return <TrajectoryMap_dynamic />;
+  return <TrajectoryTabs />;
 }

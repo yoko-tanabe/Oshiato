@@ -42,6 +42,7 @@
   border-color: #c4b5fd;
 }
 
+/* プリセットカラーグリッド */
 .colorGrid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -66,11 +67,140 @@
   transform: scale(1.15);
 }
 
+.colorUsed {
+  opacity: 0.2;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* もっと選ぶ / 閉じる トグル */
+.toggleColors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color var(--transition-fast);
+}
+
+.toggleColors:hover {
+  color: var(--color-primary);
+}
+
+/* カラーピッカーエリア */
+.pickerArea {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+/* 選択中プレビュー */
+.pickerPreview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pickerPreviewSwatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.pickerPreviewHex {
+  font-size: 14px;
+  font-family: monospace;
+  color: var(--color-text-primary);
+}
+
+/* バーのラベル */
+.barLabel {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* 共通バースタイル */
+.hueBar,
+.lightnessBar {
+  position: relative;
+  height: 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.hueBar {
+  background: linear-gradient(
+    to right,
+    hsl(0, 70%, 70%),
+    hsl(30, 70%, 70%),
+    hsl(60, 70%, 70%),
+    hsl(90, 70%, 70%),
+    hsl(120, 70%, 70%),
+    hsl(150, 70%, 70%),
+    hsl(180, 70%, 70%),
+    hsl(210, 70%, 70%),
+    hsl(240, 70%, 70%),
+    hsl(270, 70%, 70%),
+    hsl(300, 70%, 70%),
+    hsl(330, 70%, 70%),
+    hsl(360, 70%, 70%)
+  );
+}
+
+/* lightnessBar の background は JS で動的に設定 */
+
+/* バーのつまみ */
+.barThumb {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* この色を選択 ボタン */
+.pickerApply {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.pickerApply:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* エラー */
 .error {
   font-size: 13px;
   color: #f87171;
 }
 
+/* 送信ボタン */
 .submit {
   padding: 12px;
   background: #c4b5fd;

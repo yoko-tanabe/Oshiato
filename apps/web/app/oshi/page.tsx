@@ -83,6 +83,7 @@ export default function OshiPage() {
       {userId && (
         <AddOshiForm
           userId={userId}
+          usedColors={oshiList.map((item) => item.theme_color)}
           onAdded={() => {
             setRefreshKey((k) => k + 1);
             showToast('success', '推しを追加しました');

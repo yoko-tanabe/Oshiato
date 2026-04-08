@@ -2,25 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
 import ImagePicker from '../ImagePicker/ImagePicker';
 import LocationPicker from '../LocationPicker/LocationPicker';
 import { extractExif, type ExifData } from '@/lib/exif/extractExif';
 import { processImage } from '@/lib/image/processImage';
+import { calcDefaultPeriod } from '@/lib/date/periodHelper';
 import { findOrCreateSpot } from '@/lib/supabase/spots';
 import { supabase } from '@/lib/supabase/client';
 import { useCurrentUser } from '@/lib/user/useCurrentUser';
 import styles from './PostForm.module.css';
 
-type Category = 'ooh' | 'collab_cafe' | 'event' | 'shop' | 'other';
+type Category = 'ooh' | 'popup' | 'event' | 'other';
 
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: 'ooh', label: '目撃' },
-  { value: 'collab_cafe', label: 'コラボカフェ' },
-  { value: 'event', label: 'イベント' },
-  { value: 'shop', label: 'ショップ' },
-  { value: 'other', label: 'その他' },
+const CATEGORIES: { value: Category; label: string; description: string }[] = [
+  { value: 'ooh', label: '広告（OOH）', description: '屋外広告、看板、ラッピングなど' },
+  { value: 'popup', label: 'ポップアップ', description: 'コラボカフェ、期間限定ショップなど' },
+  { value: 'event', label: 'イベント', description: 'ライブ、握手会、ファンミなど' },
+  { value: 'other', label: 'その他', description: '常設ショップ、聖地など' },
 ];
 
 interface OshiOption {
@@ -39,7 +39,27 @@ export default function PostForm() {
   const [oshiOptions, setOshiOptions] = useState<OshiOption[]>([]);
   const [selectedOshiId, setSelectedOshiId] = useState<string>('');
   const [category, setCategory] = useState<Category>('ooh');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [comment, setComment] = useState('');
+
+  // カテゴリ変更時にデフォルト期間を自動設定
+  function handleCategoryChange(newCategory: Category) {
+    setCategory(newCategory);
+    const today = new Date();
+    const defaults = calcDefaultPeriod(newCategory, today);
+    setStartDate(defaults.startDate);
+    setEndDate(defaults.endDate);
+  }
+
+  // 初回マウント時にもデフォルト期間を設定
+  useEffect(() => {
+    const today = new Date();
+    const defaults = calcDefaultPeriod(category, today);
+    setStartDate(defaults.startDate);
+    setEndDate(defaults.endDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [manualLat, setManualLat] = useState<number | null>(null);
   const [manualLng, setManualLng] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,7 +132,6 @@ export default function PostForm() {
       }
 
       // 2. 画像を処理してSupabase Storageにアップロード
-      const today = new Date().toISOString().split('T')[0];
       const imageUrls: string[] = [];
 
       for (let i = 0; i < images.length; i++) {
@@ -139,6 +158,10 @@ export default function PostForm() {
       }
 
       // 3. postsテーブルに保存
+      const defaults = calcDefaultPeriod(category, new Date());
+      const finalStartDate = startDate || defaults.startDate;
+      const finalEndDate = endDate || defaults.endDate;
+
       const { data: post, error: postError } = await supabase
         .from('posts')
         .insert({
@@ -147,8 +170,8 @@ export default function PostForm() {
           user_id: userId,
           category,
           comment: comment.trim() || null,
-          start_date: today,
-          end_date: today,
+          start_date: finalStartDate,
+          end_date: finalEndDate,
           taken_at: firstExif?.takenAt ?? null,
           taken_location: firstExif
             ? `POINT(${firstExif.lng} ${firstExif.lat})`
@@ -205,11 +228,11 @@ export default function PostForm() {
         <h2 className={styles.sectionTitle}>写真</h2>
         <ImagePicker files={images} onChange={handleImagesChange} />
         {exifList.some((e) => e !== null) && (
-          <p className={styles.exifNote}>📍 GPS情報を取得しました</p>
+          <p className={styles.exifNote}><MapPin size={14} /> GPS情報を取得しました</p>
         )}
         {images.length > 0 && exifList.every((e) => e === null) && (
           <>
-            <p className={styles.exifWarn}>⚠️ GPS情報なし — 下の地図で場所を指定してください</p>
+            <p className={styles.exifWarn}><AlertTriangle size={14} /> GPS情報なし — 下の地図で場所を指定してください</p>
             <LocationPicker
               onLocationSelect={(lat, lng) => {
                 setManualLat(lat);
@@ -251,11 +274,44 @@ export default function PostForm() {
               key={cat.value}
               type="button"
               className={`${styles.categoryButton} ${category === cat.value ? styles.categoryButtonActive : ''}`}
-              onClick={() => setCategory(cat.value)}
+              onClick={() => handleCategoryChange(cat.value)}
             >
               {cat.label}
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* 期間 */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>期間</h2>
+        <p className={styles.periodHint}>
+          {category === 'ooh'
+            ? 'OOH広告は掲出週が自動設定されます。終了日は延長可能です。'
+            : '未入力の場合は今週日曜日までが自動設定されます。'}
+        </p>
+        <div className={styles.periodRow}>
+          <label className={styles.periodLabel}>
+            <span className={styles.periodLabelText}>開始</span>
+            <input
+              type="date"
+              className={styles.periodInput}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              readOnly={category === 'ooh'}
+            />
+          </label>
+          <span className={styles.periodSeparator}>〜</span>
+          <label className={styles.periodLabel}>
+            <span className={styles.periodLabelText}>終了</span>
+            <input
+              type="date"
+              className={styles.periodInput}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={category === 'ooh' ? endDate : startDate || undefined}
+            />
+          </label>
         </div>
       </section>
 

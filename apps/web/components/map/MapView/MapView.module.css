@@ -36,6 +36,28 @@
   box-shadow: 0 4px 16px color-mix(in srgb, var(--oshi-color, #c4b5fd) 50%, transparent);
 }
 
+/* チェックイン済みスポットのレインボーピン */
+.pinCheckedIn {
+  width: 16px;
+  height: 16px;
+  background: var(--oshi-color, #aaaaaa);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.pinCheckedIn::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    #c97b84, #d4a373, #e9c46a, #8ab17d, #7ea8be, #a388bf
+  );
+  z-index: -1;
+}
+
 /* 現在地ボタン */
 .locateButton {
   position: absolute;

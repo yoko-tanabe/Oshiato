@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { ImagePlus, ImageIcon, X } from 'lucide-react';
+import { createPreviewUrl } from '@/lib/image/processImage';
 import styles from './ImagePicker.module.css';
 
 interface ImagePickerProps {
@@ -12,8 +13,18 @@ interface ImagePickerProps {
 
 export default function ImagePicker({ files, onChange, maxImages = 4 }: ImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [previews, setPreviews] = useState<string[]>([]);
 
-  const previews = files.map((file) => URL.createObjectURL(file));
+  // ファイル変更時にプレビューURLを生成
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(files.map((f) => createPreviewUrl(f))).then((urls) => {
+      if (!cancelled) setPreviews(urls);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [files]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
@@ -33,8 +44,15 @@ export default function ImagePicker({ files, onChange, maxImages = 4 }: ImagePic
       <div className={styles.grid}>
         {previews.map((src, i) => (
           <div key={i} className={styles.previewItem}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={`選択画像 ${i + 1}`} className={styles.previewImage} />
+            {src ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={src} alt={`選択画像 ${i + 1}`} className={styles.previewImage} />
+            ) : (
+              <div className={styles.previewFallback}>
+                <ImageIcon size={24} />
+                <span>プレビュー不可</span>
+              </div>
+            )}
             <button
               type="button"
               className={styles.removeButton}
