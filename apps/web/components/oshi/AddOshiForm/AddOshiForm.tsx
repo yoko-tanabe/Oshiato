@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import styles from './AddOshiForm.module.css';
 
@@ -16,6 +16,13 @@ const PRESET_COLORS = [
   '#f87171', // Red
   '#a3e635', // Lime
 ];
+
+/** サジェスト候補の型 */
+type OshiSuggestion = {
+  id: string;
+  name: string;
+  group_name: string | null;
+};
 
 type Props = {
   userId: string;
@@ -44,6 +51,14 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // サジェスト関連
+  const [suggestions, setSuggestions] = useState<OshiSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedOshiId, setSelectedOshiId] = useState<string | null>(null);
+  const [, setIsNewOshi] = useState(false);
+  const suggestRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
   // カラーピッカーのstate
   const [hue, setHue] = useState(270);          // 0-360
   const [lightness, setLightness] = useState(70); // 20-90
@@ -65,6 +80,70 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
     setThemeColor(firstAvailable);
   }
 
+  // サジェスト検索
+  const searchOshis = useCallback(async (keyword: string) => {
+    if (keyword.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('oshis')
+      .select('id, name, group_name')
+      .or(`name.ilike.%${keyword}%,group_name.ilike.%${keyword}%`)
+      .limit(10);
+
+    if (data) {
+      setSuggestions(data);
+      setShowSuggestions(true);
+    }
+  }, []);
+
+  // 入力変更時のハンドラ
+  function handleNameChange(value: string) {
+    setName(value);
+    // 既存選択をリセット
+    setSelectedOshiId(null);
+    setIsNewOshi(false);
+    setGroupName('');
+
+    // デバウンスで検索
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      searchOshis(value.trim());
+    }, 300);
+  }
+
+  // 候補を選択
+  function handleSelectSuggestion(oshi: OshiSuggestion) {
+    setSelectedOshiId(oshi.id);
+    setName(oshi.name);
+    setGroupName(oshi.group_name ?? '');
+    setIsNewOshi(false);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  }
+
+  // 新規登録を選択
+  function handleSelectNew() {
+    setSelectedOshiId(null);
+    setIsNewOshi(true);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  }
+
+  // サジェスト外クリックで閉じる
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestRef.current && !suggestRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Hueバーのクリック/ドラッグ
   const handleHueInteraction = useCallback((clientX: number) => {
     const bar = hueBarRef.current;
@@ -83,7 +162,6 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
     if (!bar) return;
     const rect = bar.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    // 20%〜90%の範囲にマッピング（暗すぎ・明るすぎを除外）
     const newLightness = Math.round(20 + ratio * 70);
     setLightness(newLightness);
     const newColor = hslToHex(hue, 70, newLightness);
@@ -126,21 +204,50 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
     setIsSubmitting(true);
     setError(null);
 
-    const { data: oshi, error: oshiError } = await supabase
-      .from('oshis')
-      .insert({ name: name.trim(), group_name: groupName.trim() || null })
-      .select('id')
-      .single();
+    let oshiId = selectedOshiId;
 
-    if (oshiError || !oshi) {
-      setError('推しの登録に失敗しました');
-      setIsSubmitting(false);
-      return;
+    // 既存の推しが選択されていない場合は新規作成（または既存を検索）
+    if (!oshiId) {
+      const trimmedName = name.trim();
+      const trimmedGroup = groupName.trim() || null;
+
+      // まず同名＋同グループの既存レコードを検索
+      let query = supabase
+        .from('oshis')
+        .select('id')
+        .eq('name', trimmedName);
+
+      if (trimmedGroup) {
+        query = query.eq('group_name', trimmedGroup);
+      } else {
+        query = query.is('group_name', null);
+      }
+
+      const { data: existing } = await query.maybeSingle();
+
+      if (existing) {
+        // 既に存在する場合はそのIDを使う
+        oshiId = existing.id;
+      } else {
+        // 存在しない場合は新規作成
+        const { data: oshi, error: oshiError } = await supabase
+          .from('oshis')
+          .insert({ name: trimmedName, group_name: trimmedGroup })
+          .select('id')
+          .single();
+
+        if (oshiError || !oshi) {
+          setError('推しの登録に失敗しました');
+          setIsSubmitting(false);
+          return;
+        }
+        oshiId = oshi.id;
+      }
     }
 
     const { error: linkError } = await supabase
       .from('user_oshis')
-      .insert({ user_id: userId, oshi_id: oshi.id, theme_color: themeColor });
+      .insert({ user_id: userId, oshi_id: oshiId, theme_color: themeColor });
 
     if (linkError) {
       setError('推しの紐付けに失敗しました');
@@ -151,36 +258,94 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
     setName('');
     setGroupName('');
     setThemeColor('');
+    setSelectedOshiId(null);
+    setIsNewOshi(false);
     setShowPicker(false);
     setIsSubmitting(false);
     onAdded();
+  }
+
+  /** サジェストの表示テキスト */
+  function formatSuggestion(oshi: OshiSuggestion): string {
+    if (oshi.group_name) {
+      return `${oshi.name}（${oshi.group_name}）`;
+    }
+    return `${oshi.name}（グループ）`;
   }
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <h2 className={styles.title}>推しを追加</h2>
 
-      <label className={styles.label}>
+      {/* 推し名入力 + サジェスト */}
+      <div className={`${styles.label} ${styles.suggestWrap}`} ref={suggestRef}>
         推しの名前 <span className={styles.required}>*</span>
-        <input
-          className={styles.input}
-          type="text"
-          placeholder="例：田中花子"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={50}
-        />
-      </label>
+        <div className={styles.searchInputWrap}>
+          <Search size={16} className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            type="text"
+            placeholder="名前で検索（例：道枝駿佑）"
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            onFocus={() => {
+              if (suggestions.length > 0) setShowSuggestions(true);
+            }}
+            maxLength={50}
+            autoComplete="off"
+          />
+        </div>
 
+        {/* 選択済み表示 */}
+        {selectedOshiId && (
+          <div className={styles.selectedBadge}>
+            {groupName ? `${name}（${groupName}）` : name} を選択中
+          </div>
+        )}
+
+        {/* サジェストドロップダウン */}
+        {showSuggestions && (
+          <div className={styles.suggestDropdown}>
+            {suggestions.length > 0 ? (
+              <>
+                {suggestions.map((oshi) => (
+                  <button
+                    key={oshi.id}
+                    type="button"
+                    className={styles.suggestItem}
+                    onClick={() => handleSelectSuggestion(oshi)}
+                  >
+                    {formatSuggestion(oshi)}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <div className={styles.suggestEmpty}>
+                該当する推しが見つかりません
+              </div>
+            )}
+            <button
+              type="button"
+              className={styles.suggestNewItem}
+              onClick={handleSelectNew}
+            >
+              「{name.trim()}」を新しく登録する
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* グループ名（既存選択時は読み取り専用、新規登録時は編集可） */}
       <label className={styles.label}>
         グループ名（任意）
         <input
           className={styles.input}
           type="text"
-          placeholder="例：○○○48"
+          placeholder="例：Snow Man"
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
           maxLength={50}
+          readOnly={!!selectedOshiId}
         />
       </label>
 

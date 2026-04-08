@@ -286,7 +286,7 @@ CREATE INDEX idx_spots_area_id ON spots(area_id);
 ```sql
 -- チェック制約
 ALTER TABLE posts ADD CONSTRAINT chk_posts_category 
-  CHECK (category IN ('ooh', 'collab_cafe', 'event', 'shop', 'other'));
+  CHECK (category IN ('ooh', 'popup', 'event', 'other'));
 ALTER TABLE posts ADD CONSTRAINT chk_posts_status 
   CHECK (status IN ('active', 'expired', 'deleted'));
 ALTER TABLE posts ADD CONSTRAINT chk_posts_comment_length 
@@ -328,6 +328,10 @@ CREATE INDEX idx_post_images_post_id ON post_images(post_id);
 -- チェック制約
 ALTER TABLE oshis ADD CONSTRAINT chk_oshis_category 
   CHECK (category IN ('idol', 'kpop', 'anime', 'voice_actor', 'other'));
+
+-- ユニークインデックス（同名＋同グループの重複防止）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_oshis_name_group
+  ON oshis (name, COALESCE(group_name, ''));
 ```
 
 #### areas（エリアマスタ）
@@ -612,6 +616,10 @@ CREATE TABLE oshis (
   CONSTRAINT chk_oshis_category CHECK (category IN ('idol', 'kpop', 'anime', 'voice_actor', 'other'))
 );
 
+-- oshis ユニークインデックス（同名＋同グループの重複防止）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_oshis_name_group
+  ON oshis (name, COALESCE(group_name, ''));
+
 -- user_oshis テーブル
 CREATE TABLE user_oshis (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -651,7 +659,7 @@ CREATE TABLE posts (
   reply_count INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT chk_posts_category CHECK (category IN ('ooh', 'collab_cafe', 'event', 'shop', 'other')),
+  CONSTRAINT chk_posts_category CHECK (category IN ('ooh', 'popup', 'event', 'other')),
   CONSTRAINT chk_posts_status CHECK (status IN ('active', 'expired', 'deleted')),
   CONSTRAINT chk_posts_comment_length CHECK (LENGTH(comment) <= 140)
 );
@@ -706,10 +714,14 @@ INSERT INTO areas (name, prefecture) VALUES
   ('原宿', '東京都'),
   ('秋葉原', '東京都');
 
--- 推し（サンプル）
+-- 推し（マスタデータ）
+-- ハロプロ・STARTOのグループ＋メンバーをシードデータとして投入
+-- 詳細は supabase/seed-oshis-hello-project.sql, supabase/seed-oshis-starto.sql を参照
 INSERT INTO oshis (name, group_name, category) VALUES
-  ('サンプル推しA', 'サンプルグループ', 'idol'),
-  ('サンプル推しB', 'サンプルグループ', 'idol');
+  ('モーニング娘。', NULL, 'idol'),        -- 箱推し用
+  ('譜久村聖', 'モーニング娘。', 'idol'),    -- メンバー個人
+  ...
+ON CONFLICT (name, COALESCE(group_name, '')) DO NOTHING;
 
 -- スポット（サンプル）
 INSERT INTO spots (location, address, area_id) VALUES
@@ -884,6 +896,7 @@ $$;
 | visit_logs | user_id, visited_at | B-tree | 軌跡マップ表示 |
 | visit_logs | location | GiST | 位置検索 |
 | check_ins | user_id, checked_at | B-tree | チェックイン履歴 |
+| oshis | name, COALESCE(group_name, '') | B-tree (UNIQUE) | 同名＋同グループの重複防止 |
 | user_oshis | user_id | B-tree | ユーザーの推し取得 |
 
 ### 9.2 GiSTインデックスの説明

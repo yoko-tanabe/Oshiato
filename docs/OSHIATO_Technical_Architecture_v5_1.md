@@ -115,6 +115,7 @@
 | | TypeScript | 5.x | 型安全 |
 | **スタイル** | CSS Modules | - | スコープ付きCSS |
 | **地図** | Mapbox GL JS | 3.x | 地図表示 |
+| | Mapbox Geocoding API | v5 | 住所検索→座標変換 |
 | **DB** | Supabase | - | PostgreSQL + PostGIS |
 | **ストレージ** | Supabase Storage | - | 画像保存 |
 | **ホスティング** | Vercel | Free | デプロイ |
