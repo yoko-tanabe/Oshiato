@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: space-around;
   background: #1a1a1a;
-  border-top: 1px solid #252525;
+
   padding: 14px 10px 12px;
   /* iPhoneのホームバー（セーフエリア）に対応 */
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
@@ -33,18 +33,6 @@
 
 .tabActive {
   position: relative;
-}
-
-.tabActive::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background: #c4b5fd;
-  border-radius: var(--radius-full);
 }
 
 .tabActive .label {

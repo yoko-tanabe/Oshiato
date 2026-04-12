@@ -22,12 +22,18 @@
 
 /* EXIF情報メッセージ */
 .exifNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: #4ade80;
   margin: 0;
 }
 
 .exifWarn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--color-text-secondary);
   margin: 0;
@@ -83,8 +89,68 @@
 
 .categoryButtonActive {
   border-color: var(--color-primary);
-  background-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
-  color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* 期間 */
+.periodHint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.periodRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.periodLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.periodLabelText {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.periodInput {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.periodInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.periodInput:read-only {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.periodInput::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+.periodSeparator {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-top: 18px;
 }
 
 /* コメント */

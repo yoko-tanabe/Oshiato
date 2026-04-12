@@ -290,7 +290,7 @@ async function findNearbySpots(lat: number, lng: number, radiusMeters: number = 
 interface CreatePostParams {
   userId: string
   oshiId: string
-  category: 'ooh' | 'collab_cafe' | 'event' | 'shop' | 'other'
+  category: 'ooh' | 'popup' | 'event' | 'other'
   comment?: string
   startDate: string      // YYYY-MM-DD
   endDate: string        // YYYY-MM-DD
@@ -483,7 +483,9 @@ async function getPostDetail(postId: string) {
 
 ## 5. 推し管理API
 
-### 5.1 推しマスタ検索
+### 5.1 推しマスタ検索（サジェスト）
+
+AddOshiFormのオートコンプリートUIで使用。2文字以上の入力で検索を開始し、300msのデバウンスで呼び出す。
 
 **実装:**
 
@@ -491,37 +493,64 @@ async function getPostDetail(postId: string) {
 async function searchOshis(keyword: string) {
   const { data, error } = await supabase
     .from('oshis')
-    .select('id, name, group_name, category')
+    .select('id, name, group_name')
     .or(`name.ilike.%${keyword}%,group_name.ilike.%${keyword}%`)
-    .limit(20)
+    .limit(10)
 
   return { data, error }
 }
 ```
 
-### 5.2 推しマスタ追加
+**サジェスト表示フォーマット:**
+- メンバー: `「譜久村聖（モーニング娘。）」`
+- 箱推し（group_nameがNULL）: `「モーニング娘。（グループ）」`
+- 最下部: `「{入力テキスト}を新しく登録する」`（新規登録オプション）
+
+### 5.2 推しマスタ追加（重複チェック付き）
+
+新規登録時は、まず同名＋同グループの既存レコードを検索し、存在すればそのIDを返す。存在しなければ新規作成する。`(name, COALESCE(group_name, ''))` のユニークインデックスでDB側でも重複を防止。
 
 **実装:**
 
 ```typescript
 interface CreateOshiParams {
   name: string
-  groupName?: string
+  groupName?: string | null
   category: 'idol' | 'kpop' | 'anime' | 'voice_actor' | 'other'
 }
 
-async function createOshi(params: CreateOshiParams) {
+async function findOrCreateOshi(params: CreateOshiParams): Promise<string> {
+  // まず同名＋同グループの既存レコードを検索
+  let query = supabase
+    .from('oshis')
+    .select('id')
+    .eq('name', params.name)
+
+  if (params.groupName) {
+    query = query.eq('group_name', params.groupName)
+  } else {
+    query = query.is('group_name', null)
+  }
+
+  const { data: existing } = await query.maybeSingle()
+
+  if (existing) {
+    return existing.id  // 既存のIDを返す
+  }
+
+  // 存在しなければ新規作成
   const { data, error } = await supabase
     .from('oshis')
     .insert({
       name: params.name,
-      group_name: params.groupName,
+      group_name: params.groupName ?? null,
       category: params.category
     })
-    .select()
+    .select('id')
     .single()
 
-  return { data, error }
+  if (error) throw error
+  return data.id
 }
 ```
 
@@ -1284,7 +1313,7 @@ import { z } from 'zod'
 
 const createPostSchema = z.object({
   oshiId: z.string().uuid(),
-  category: z.enum(['ooh', 'collab_cafe', 'event', 'shop', 'other']),
+  category: z.enum(['ooh', 'popup', 'event', 'other']),
   comment: z.string().max(140).optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -1486,6 +1515,48 @@ async function getPostsWithCursor(params: CursorParams) {
 - タイムライン → カーソルベース（無限スクロール）
 - 訪問ログ → オフセットベース（ページ番号表示）
 - 検索結果 → オフセットベース（「10件中1-10件」表示）
+
+---
+
+## 16. 外部API連携
+
+### 16.1 Mapbox Geocoding API（住所検索→座標変換）
+
+投稿時にEXIF GPS情報がない写真をアップロードした場合、ユーザーが住所・場所名から位置を指定するために使用。
+
+#### エンドポイント
+
+```
+GET https://api.mapbox.com/geocoding/v5/mapbox.places/{query}.json
+```
+
+#### パラメータ
+
+| パラメータ | 値 | 説明 |
+|-----------|-----|------|
+| `access_token` | `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox GL JSと共通のトークン |
+| `language` | `ja` | 日本語で結果を返す |
+| `country` | `jp` | 日本国内に限定 |
+| `limit` | `5` | 候補数の上限 |
+| `types` | `poi,address,place` | スポット・住所・地名に絞る |
+
+#### レスポンス（使用するフィールド）
+
+```typescript
+interface GeocodingFeature {
+  place_name: string;        // 表示用の住所文字列
+  center: [number, number];  // [経度, 緯度]
+}
+```
+
+#### 使用箇所
+
+- `components/post/LocationPicker/LocationPicker.tsx`
+- 入力から300msのデバウンス後にリクエスト
+
+#### 料金
+
+- 月10万リクエストまで無料（Mapbox Free tier）
 
 ---
 

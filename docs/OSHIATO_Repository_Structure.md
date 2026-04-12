@@ -229,11 +229,13 @@ apps/web/
 │   │   └── AppShell/            #   アプリ骨格（TabBar含む）
 │   │
 │   ├── map/                     # 地図関連
-│   │   └── MapView/             #   Mapbox地図 + スポットピン + チェックイン
+│   │   ├── MapView/             #   Mapbox地図 + スポットピン + チェックイン
+│   │   └── MapFilter/           #   期間フィルターバー（今日/明日/今週/カスタム）
 │   │
 │   ├── post/                    # 投稿関連
 │   │   ├── PostForm/            #   投稿フォーム
-│   │   └── ImagePicker/         #   画像選択
+│   │   ├── ImagePicker/         #   画像選択
+│   │   └── LocationPicker/      #   手動位置指定（住所検索 + 地図タップ）
 │   │
 │   ├── spot/                    # スポット関連
 │   │   ├── SpotDetail/          #   スポット詳細ページ本体
@@ -243,11 +245,12 @@ apps/web/
 │   │   └── TimelineGrid/        #   月別写真グリッド
 │   │
 │   ├── trajectory/              # 軌跡関連
-│   │   └── TrajectoryMap/       #   軌跡マップ本体
+│   │   ├── TrajectoryMap/       #   軌跡マップ本体
+│   │   └── TrajectoryTabs/      #   軌跡マップ/訪問ログ切り替えタブ
 │   │
 │   ├── oshi/                    # 推し関連
 │   │   ├── OshiCard/            #   推しカード表示
-│   │   └── AddOshiForm/         #   推し追加フォーム
+│   │   └── AddOshiForm/         #   推し追加フォーム（サジェスト検索＋HSLカラーピッカー）
 │   │
 │   ├── visits/                  # 訪問ログ関連
 │   │   └── VisitList/           #   訪問ログ一覧
@@ -271,7 +274,10 @@ apps/web/
 │   │   └── extractExif.ts       #   EXIF抽出（GPS・撮影日時）
 │   │
 │   ├── image/
-│   │   └── processImage.ts      #   画像処理（WebP変換・リサイズ）
+│   │   └── processImage.ts      #   画像処理（WebP変換・リサイズ・HEICプレビュー）
+│   │
+│   ├── date/
+│   │   └── periodHelper.ts      #   期間計算（週の月曜/日曜・カテゴリ別デフォルト）
 │   │
 │   └── user/
 │       ├── getOrCreateUser.ts   #   匿名ユーザー取得/作成
@@ -318,7 +324,7 @@ apps/web/
 
 #### ライブラリ（lib/）
 
-- **機能別にサブディレクトリ**: `supabase/`, `exif/`, `image/`, `user/`
+- **機能別にサブディレクトリ**: `supabase/`, `exif/`, `image/`, `date/`, `user/`
 - **カスタムフックもlib内に配置**: `lib/user/useCurrentUser.ts`
 - **外部サービス連携**: `supabase/client.ts`, `supabase/checkins.ts`
 
@@ -424,16 +430,19 @@ apps/ios/
 
 ```
 supabase/
-├── config.toml                  # Supabase CLI設定
+├── config.toml                          # Supabase CLI設定
 │
-├── migrations/                  # マイグレーションファイル
-│   ├── 00001_initial.sql        # 初期テーブル作成
-│   ├── 00002_add_visits.sql     # 訪問ログテーブル追加
+├── migrations/                          # マイグレーションファイル
+│   ├── 00001_initial.sql                # 初期テーブル作成
+│   ├── 00002_add_visits.sql             # 訪問ログテーブル追加
+│   ├── 20260409_add_oshi_unique_index.sql # oshis テーブルのユニーク制約追加
 │   └── ...
 │
-├── seed.sql                     # 初期データ
+├── seed.sql                             # 初期データ
+├── seed-oshis-hello-project.sql         # ハロプロ シードデータ（グループ＋メンバー）
+├── seed-oshis-starto.sql                # STARTO シードデータ（グループ＋メンバー）
 │
-└── functions/                   # Edge Functions（Phase 3以降）
+└── functions/                           # Edge Functions（Phase 3以降）
     └── ...
 ```
 
@@ -444,6 +453,8 @@ supabase/
 | config.toml | Supabase CLIの設定ファイル |
 | migrations/ | データベースマイグレーション |
 | seed.sql | 開発用の初期データ |
+| seed-oshis-hello-project.sql | ハロプロの推しマスタデータ（グループ＋メンバー） |
+| seed-oshis-starto.sql | STARTOの推しマスタデータ（グループ＋メンバー） |
 | functions/ | Supabase Edge Functions（Phase 3以降） |
 
 ### 9.2 マイグレーションの命名規則

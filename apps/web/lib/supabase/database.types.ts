@@ -132,7 +132,7 @@ export type Database = {
           spot_id: string;
           oshi_id: string;
           user_id: string | null;
-          category: 'ooh' | 'collab_cafe' | 'event' | 'shop' | 'other';
+          category: 'ooh' | 'popup' | 'event' | 'other';
           comment: string | null;
           start_date: string;
           end_date: string;
@@ -148,7 +148,7 @@ export type Database = {
           spot_id: string;
           oshi_id: string;
           user_id?: string | null;
-          category: 'ooh' | 'collab_cafe' | 'event' | 'shop' | 'other';
+          category: 'ooh' | 'popup' | 'event' | 'other';
           comment?: string | null;
           start_date: string;
           end_date: string;
@@ -163,7 +163,7 @@ export type Database = {
           spot_id?: string;
           oshi_id?: string;
           user_id?: string | null;
-          category?: 'ooh' | 'collab_cafe' | 'event' | 'shop' | 'other';
+          category?: 'ooh' | 'popup' | 'event' | 'other';
           comment?: string | null;
           start_date?: string;
           end_date?: string;

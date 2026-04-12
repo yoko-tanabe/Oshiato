@@ -9,6 +9,7 @@ import { getOrCreateUser } from '@/lib/user/getOrCreateUser';
 import { performCheckIn } from '@/lib/supabase/checkins';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
+import MapFilter, { type DateRange } from '@/components/map/MapFilter/MapFilter';
 import styles from './MapView.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -24,10 +25,11 @@ export default function MapView() {
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
   const [isLocating, setIsLocating] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [filterRange, setFilterRange] = useState<DateRange | null>(null);
   const { showToast } = useToast();
 
   // Supabaseからスポットを取得してピンを描画
-  const loadSpots = useCallback(async (map: mapboxgl.Map) => {
+  const loadSpots = useCallback(async (map: mapboxgl.Map, dateFilter?: DateRange | null) => {
     // ① 現在のユーザーの推し色・推し名マップを取得
     const oshiColorMap = new Map<string, string>();
     const oshiNameMap = new Map<string, string>();
@@ -71,10 +73,10 @@ export default function MapView() {
 
     const spotIds = spots.map((s) => s.id);
 
-    // ③ 該当スポットの投稿を一括取得
+    // ③ 該当スポットの投稿を一括取得（期間情報も含む）
     const { data: posts } = await supabase
       .from('posts')
-      .select('id, spot_id, oshi_id')
+      .select('id, spot_id, oshi_id, start_date, end_date')
       .in('spot_id', spotIds)
       .eq('status', 'active');
 
@@ -88,9 +90,14 @@ export default function MapView() {
           .eq('display_order', 0)
       : { data: [] as { post_id: string; image_url: string; display_order: number }[] };
 
-    // spot_id → posts のマップ
+    // spot_id → posts のマップ（期間フィルター適用）
     const postsBySpot = new Map<string, { id: string; oshi_id: string }[]>();
     posts?.forEach((p) => {
+      // 期間フィルターが指定されている場合、範囲が重ならない投稿を除外
+      // 投稿の期間とフィルター期間が重なる条件: start_date <= filter.to AND end_date >= filter.from
+      if (dateFilter && (p.start_date > dateFilter.to || p.end_date < dateFilter.from)) {
+        return;
+      }
       const list = postsBySpot.get(p.spot_id) ?? [];
       list.push({ id: p.id, oshi_id: p.oshi_id });
       postsBySpot.set(p.spot_id, list);
@@ -101,6 +108,21 @@ export default function MapView() {
     images?.forEach((img) => {
       thumbByPost.set(img.post_id, img.image_url);
     });
+
+    // ⑤ チェックイン済みスポットを取得
+    const checkedInSpots = new Set<string>();
+    try {
+      const userId = await getOrCreateUser();
+      const { data: checkIns } = await supabase
+        .from('check_ins')
+        .select('spot_id')
+        .eq('user_id', userId)
+        .in('spot_id', spotIds);
+
+      checkIns?.forEach((ci) => checkedInSpots.add(ci.spot_id));
+    } catch {
+      // チェックイン取得失敗時は通常ピンにフォールバック
+    }
 
     // 既存マーカー・ポップアップを削除
     popupsRef.current.forEach((p) => p.remove());
@@ -120,8 +142,9 @@ export default function MapView() {
       const postCount = spotPosts.length;
 
       // マーカー要素を作成（推し色を CSS カスタムプロパティで渡す）
+      const isCheckedIn = checkedInSpots.has(spot.id);
       const el = document.createElement('div');
-      el.className = styles.pin;
+      el.className = isCheckedIn ? `${styles.pin} ${styles.pinCheckedIn}` : styles.pin;
       el.style.setProperty('--oshi-color', oshiColor);
 
       // ポップアップ HTML を組み立て
@@ -237,6 +260,14 @@ export default function MapView() {
     return () => container.removeEventListener('click', handleCheckinClick);
   }, [showToast]);
 
+  // フィルター変更時にスポットを再読み込み
+  function handleFilterChange(range: DateRange | null) {
+    setFilterRange(range);
+    if (mapRef.current) {
+      loadSpots(mapRef.current, range);
+    }
+  }
+
   // 現在地に移動
   function handleLocate() {
     if (!navigator.geolocation || !mapRef.current) return;
@@ -261,6 +292,7 @@ export default function MapView() {
   return (
     <div className={styles.wrapper}>
       <div ref={mapContainerRef} className={styles.map} />
+      {isMapLoaded && <MapFilter onFilterChange={handleFilterChange} />}
       {!isMapLoaded && (
         <div className={styles.loadingOverlay}>
           <LoadingSpinner size="large" />
