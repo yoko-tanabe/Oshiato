@@ -163,12 +163,9 @@ export default function MapView() {
       const thumbnail = firstPost ? (thumbByPost.get(firstPost.id) ?? null) : null;
       const postCount = spotPosts.length;
 
-      // 推しフィルター時: 自分の投稿があるか判定
-      const isFiltering = oshiFilter !== undefined && oshiFilter.length > 0;
-      const hasMinePost = isFiltering
-        ? spotPosts.some((p) => p.user_id === currentUserId)
-        : true;
-      const isOtherOnly = isFiltering && !hasMinePost;
+      // 自分の投稿があるか判定（他者のみのスポットはボーダーのみで差別化）
+      const hasMinePost = spotPosts.some((p) => p.user_id === currentUserId);
+      const isOtherOnly = !hasMinePost && spotPosts.length > 0;
 
       // マーカー要素を作成（推し色を CSS カスタムプロパティで渡す）
       const isCheckedIn = checkedInSpots.has(spot.id);

@@ -3,7 +3,7 @@
 ## コンポーネント構成
 
 ### 新規作成
-- `apps/web/components/map/OshiFilter/OshiFilter.tsx` — 推しチップUI
+- `apps/web/components/map/OshiFilter/OshiFilter.tsx` — 推しドロップダウンUI（複数選択可）
 - `apps/web/components/map/OshiFilter/OshiFilter.module.css` — スタイル
 
 ### 変更
@@ -22,17 +22,18 @@ type OshiOption = {
 
 type Props = {
   oshis: OshiOption[];
-  selectedOshiId: string | null;  // null = すべて
-  onSelect: (oshiId: string | null) => void;
+  selectedOshiIds: string[];  // 空配列 = すべて
+  onSelect: (oshiIds: string[]) => void;
 };
 ```
 
 ### UI構成
-- 横スクロール可能なチップリスト
-- 先頭に「すべて」チップ（常に表示）
-- 各推しチップ: 推し名 + 推しカラーの左マーク
-- 選択中チップ: 背景に推しカラー（半透明）、テキスト色を推しカラー
-- 非選択チップ: ダーク背景、グレーテキスト
+- ドロップダウン形式（トリガーボタン + メニュー）
+- トリガーボタン: 「すべての推し」/「○人選択中」と ▼ アイコン
+- メニュー先頭に「すべて」（全選択解除）
+- 各推し行: カラードット + 推し名 + ✓（選択中のみ）
+- 複数選択可（トグル式）
+- ドロップダウン外クリックで閉じる
 
 ### 配置
 - MapFilter（期間フィルター）の下に配置
@@ -47,15 +48,15 @@ type Props = {
   - 未登録の推しはグレー表示（フィルター対象外）
 
 ### フィルターロジック
-1. `selectedOshiId` が null → 現状通り全スポット表示
-2. `selectedOshiId` が指定 → その推しのoshi_idを持つ投稿があるスポットのみ表示
+1. `selectedOshiIds` が空配列 → 全スポット表示
+2. `selectedOshiIds` に1つ以上 → 該当推しの投稿があるスポットのみ表示
 3. 期間フィルターと AND 条件で併用
 
-### マーカー差別化（推しフィルター適用時のみ）
+### マーカー差別化（常時適用）
 - 各スポットの投稿を「自分の投稿」と「他者の投稿」に分類
 - 自分の投稿が1件以上 → `.pin`（塗りつぶし）
 - 他者の投稿のみ → `.pinOtherOnly`（ボーダーのみ）
-- フィルター未適用時は現状通り（差別化なし）
+- フィルターの有無にかかわらず常に差別化する
 
 ## CSS設計
 
@@ -76,12 +77,12 @@ type Props = {
 ```
 MapView
 ├── filterRange (DateRange | null) — 期間フィルター
-├── selectedOshiId (string | null) — 推しフィルター
-├── userOshis (OshiOption[]) — 推しリスト（OshiFilterに渡す）
+├── selectedOshiIds (string[]) — 推しフィルター（空配列=すべて）
+├── userOshiList (OshiOption[]) — 推しリスト（OshiFilterに渡す）
 └── loadSpots(map, dateFilter, oshiFilter)
      ├── 全スポット・投稿取得
      ├── 期間フィルター適用
      ├── 推しフィルター適用
-     ├── 自分/他者の投稿分類
-     └── マーカー描画（差別化あり/なし）
+     ├── 自分/他者の投稿分類（常時）
+     └── マーカー描画（自分=塗り / 他者のみ=ボーダー）
 ```
