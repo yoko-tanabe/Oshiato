@@ -1,0 +1,117 @@
+.container {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  z-index: 10;
+  padding: 0 12px;
+  pointer-events: none;
+}
+
+/* トリガーボタン */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(30, 30, 30, 0.85);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  pointer-events: auto;
+}
+
+.triggerActive {
+  background-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.triggerLabel {
+  white-space: nowrap;
+}
+
+.triggerIcon {
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.triggerIconOpen {
+  transform: rotate(180deg);
+}
+
+/* ドロップダウンメニュー */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 12px;
+  min-width: 180px;
+  max-height: 240px;
+  overflow-y: auto;
+  background-color: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  padding: 4px;
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* 各オプション行 */
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.option:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 「すべて」選択時 */
+.optionActive {
+  color: var(--color-primary);
+}
+
+/* 推し選択時 */
+.optionSelected {
+  color: var(--oshi-opt-color);
+  background-color: color-mix(in srgb, var(--oshi-opt-color) 10%, transparent);
+}
+
+.optionLabel {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 推し名の前の色ドット */
+.colorDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* チェックマーク */
+.checkMark {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--oshi-opt-color);
+}

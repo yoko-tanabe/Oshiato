@@ -10,6 +10,7 @@ import { performCheckIn } from '@/lib/supabase/checkins';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
 import MapFilter, { type DateRange } from '@/components/map/MapFilter/MapFilter';
+import OshiFilter, { type OshiOption } from '@/components/map/OshiFilter/OshiFilter';
 import styles from './MapView.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -26,21 +27,28 @@ export default function MapView() {
   const [isLocating, setIsLocating] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [filterRange, setFilterRange] = useState<DateRange | null>(null);
+  const [selectedOshiIds, setSelectedOshiIds] = useState<string[]>([]);
+  const [userOshiList, setUserOshiList] = useState<OshiOption[]>([]);
   const { showToast } = useToast();
 
   // Supabaseからスポットを取得してピンを描画
-  const loadSpots = useCallback(async (map: mapboxgl.Map, dateFilter?: DateRange | null) => {
+  const loadSpots = useCallback(async (
+    map: mapboxgl.Map,
+    dateFilter?: DateRange | null,
+    oshiFilter?: string[],
+  ) => {
     // ① 現在のユーザーの推し色・推し名マップを取得
     const oshiColorMap = new Map<string, string>();
     const oshiNameMap = new Map<string, string>();
+    let currentUserId = '';
     try {
-      const userId = await getOrCreateUser();
+      currentUserId = await getOrCreateUser();
 
       // user_oshis から oshi_id と theme_color を取得
       const { data: userOshis } = await supabase
         .from('user_oshis')
         .select('oshi_id, theme_color')
-        .eq('user_id', userId);
+        .eq('user_id', currentUserId);
 
       if (userOshis && userOshis.length > 0) {
         userOshis.forEach((row) => {
@@ -57,6 +65,14 @@ export default function MapView() {
         oshiRows?.forEach((o) => {
           oshiNameMap.set(o.id, o.name);
         });
+
+        // 推しリストを更新（OshiFilter用）
+        const oshiOptions: OshiOption[] = userOshis.map((row) => ({
+          oshiId: row.oshi_id,
+          name: oshiNameMap.get(row.oshi_id) ?? '',
+          themeColor: row.theme_color,
+        })).filter((o) => o.name !== '');
+        setUserOshiList(oshiOptions);
       }
     } catch {
       // ユーザー取得失敗時はデフォルト色にフォールバック
@@ -73,10 +89,10 @@ export default function MapView() {
 
     const spotIds = spots.map((s) => s.id);
 
-    // ③ 該当スポットの投稿を一括取得（期間情報も含む）
+    // ③ 該当スポットの投稿を一括取得（期間情報・投稿者も含む）
     const { data: posts } = await supabase
       .from('posts')
-      .select('id, spot_id, oshi_id, start_date, end_date')
+      .select('id, spot_id, oshi_id, user_id, start_date, end_date, taken_at')
       .in('spot_id', spotIds)
       .eq('status', 'active');
 
@@ -90,16 +106,19 @@ export default function MapView() {
           .eq('display_order', 0)
       : { data: [] as { post_id: string; image_url: string; display_order: number }[] };
 
-    // spot_id → posts のマップ（期間フィルター適用）
-    const postsBySpot = new Map<string, { id: string; oshi_id: string }[]>();
+    // spot_id → posts のマップ（期間フィルター・推しフィルター適用）
+    const postsBySpot = new Map<string, { id: string; oshi_id: string; user_id: string; taken_at: string | null }[]>();
     posts?.forEach((p) => {
       // 期間フィルターが指定されている場合、範囲が重ならない投稿を除外
-      // 投稿の期間とフィルター期間が重なる条件: start_date <= filter.to AND end_date >= filter.from
       if (dateFilter && (p.start_date > dateFilter.to || p.end_date < dateFilter.from)) {
         return;
       }
+      // 推しフィルターが指定されている場合、該当推し以外の投稿を除外
+      if (oshiFilter && oshiFilter.length > 0 && !oshiFilter.includes(p.oshi_id)) {
+        return;
+      }
       const list = postsBySpot.get(p.spot_id) ?? [];
-      list.push({ id: p.id, oshi_id: p.oshi_id });
+      list.push({ id: p.id, oshi_id: p.oshi_id, user_id: p.user_id ?? '', taken_at: p.taken_at ?? null });
       postsBySpot.set(p.spot_id, list);
     });
 
@@ -135,16 +154,32 @@ export default function MapView() {
       if (!coords[0] || !coords[1]) return;
 
       const spotPosts = postsBySpot.get(spot.id) ?? [];
+      // フィルター適用後に投稿がないスポットは非表示（推しフィルター時）
+      if (oshiFilter && oshiFilter.length > 0 && spotPosts.length === 0) return;
+
       const firstPost = spotPosts[0] ?? null;
       const oshiColor = firstPost ? (oshiColorMap.get(firstPost.oshi_id) ?? '#aaaaaa') : '#aaaaaa';
       const oshiName = firstPost ? (oshiNameMap.get(firstPost.oshi_id) ?? null) : null;
       const thumbnail = firstPost ? (thumbByPost.get(firstPost.id) ?? null) : null;
       const postCount = spotPosts.length;
 
+      // 推しフィルター時: 自分の投稿があるか判定
+      const isFiltering = oshiFilter !== undefined && oshiFilter.length > 0;
+      const hasMinePost = isFiltering
+        ? spotPosts.some((p) => p.user_id === currentUserId)
+        : true;
+      const isOtherOnly = isFiltering && !hasMinePost;
+
       // マーカー要素を作成（推し色を CSS カスタムプロパティで渡す）
       const isCheckedIn = checkedInSpots.has(spot.id);
       const el = document.createElement('div');
-      el.className = isCheckedIn ? `${styles.pin} ${styles.pinCheckedIn}` : styles.pin;
+      if (isOtherOnly) {
+        el.className = styles.pinOtherOnly;
+      } else if (isCheckedIn) {
+        el.className = `${styles.pin} ${styles.pinCheckedIn}`;
+      } else {
+        el.className = styles.pin;
+      }
       el.style.setProperty('--oshi-color', oshiColor);
 
       // ポップアップ HTML を組み立て
@@ -156,6 +191,7 @@ export default function MapView() {
         oshiId: firstPost?.oshi_id ?? null,
         thumbnail,
         postCount,
+        takenAt: firstPost?.taken_at ?? null,
         spotLat: spot.lat,
         spotLng: spot.lng,
       });
@@ -260,11 +296,19 @@ export default function MapView() {
     return () => container.removeEventListener('click', handleCheckinClick);
   }, [showToast]);
 
-  // フィルター変更時にスポットを再読み込み
+  // 期間フィルター変更時にスポットを再読み込み
   function handleFilterChange(range: DateRange | null) {
     setFilterRange(range);
     if (mapRef.current) {
-      loadSpots(mapRef.current, range);
+      loadSpots(mapRef.current, range, selectedOshiIds);
+    }
+  }
+
+  // 推しフィルター変更時にスポットを再読み込み
+  function handleOshiFilterChange(oshiIds: string[]) {
+    setSelectedOshiIds(oshiIds);
+    if (mapRef.current) {
+      loadSpots(mapRef.current, filterRange, oshiIds);
     }
   }
 
@@ -293,6 +337,13 @@ export default function MapView() {
     <div className={styles.wrapper}>
       <div ref={mapContainerRef} className={styles.map} />
       {isMapLoaded && <MapFilter onFilterChange={handleFilterChange} />}
+      {isMapLoaded && (
+        <OshiFilter
+          oshis={userOshiList}
+          selectedOshiIds={selectedOshiIds}
+          onSelect={handleOshiFilterChange}
+        />
+      )}
       {!isMapLoaded && (
         <div className={styles.loadingOverlay}>
           <LoadingSpinner size="large" />
@@ -328,10 +379,11 @@ function buildPopupHtml(params: {
   oshiId: string | null;
   thumbnail: string | null;
   postCount: number;
+  takenAt: string | null;
   spotLat: number;
   spotLng: number;
 }): string {
-  const { spotId, address, oshiColor, oshiName, oshiId, thumbnail, postCount, spotLat, spotLng } = params;
+  const { spotId, address, oshiColor, oshiName, oshiId, thumbnail, postCount, takenAt, spotLat, spotLng } = params;
 
   // oshi color は DB 由来だが CSS color 値として使うため #RRGGBB のみ許可
   const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(oshiColor) ? oshiColor : '#aaaaaa';
@@ -346,6 +398,13 @@ function buildPopupHtml(params: {
     : '';
   const countText = `${postCount}件の投稿`;
 
+  let dateHtml = '';
+  if (takenAt) {
+    const d = new Date(takenAt);
+    const dateText = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+    dateHtml = `<p class="spot-popup-date">${dateText}</p>`;
+  }
+
   const checkinBtn = oshiId
     ? `<button class="spot-popup-checkin" data-spot-id="${escapeHtml(spotId)}" data-oshi-id="${escapeHtml(oshiId)}" data-lat="${spotLat}" data-lng="${spotLng}">チェックイン</button>`
     : '';
@@ -355,6 +414,7 @@ function buildPopupHtml(params: {
       ${thumbHtml}
       <div class="spot-popup-body">
         ${oshiBadge}
+        ${dateHtml}
         <p class="spot-popup-address">${addressText}</p>
         <p class="spot-popup-count">${countText}</p>
         ${checkinBtn}

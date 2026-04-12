@@ -197,6 +197,13 @@ h6 {
   align-self: flex-start;
 }
 
+/* 撮影日 */
+.spot-popup-date {
+  font-size: 11px;
+  color: #a3a3a3;
+  margin: 0;
+}
+
 /* 住所 */
 .spot-popup-address {
   font-size: 12px;
