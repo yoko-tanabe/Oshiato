@@ -58,6 +58,23 @@
   z-index: -1;
 }
 
+/* 他者のみが投稿したスポット（推しフィルター適用時） */
+.pinOtherOnly {
+  width: 14px;
+  height: 14px;
+  background: transparent;
+  border: 2px solid var(--oshi-color, #aaaaaa);
+  border-radius: 50%;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.pinOtherOnly:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
 /* 現在地ボタン */
 .locateButton {
   position: absolute;
