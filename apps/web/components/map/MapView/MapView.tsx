@@ -92,7 +92,7 @@ export default function MapView() {
     // ③ 該当スポットの投稿を一括取得（期間情報・投稿者も含む）
     const { data: posts } = await supabase
       .from('posts')
-      .select('id, spot_id, oshi_id, user_id, start_date, end_date')
+      .select('id, spot_id, oshi_id, user_id, start_date, end_date, taken_at')
       .in('spot_id', spotIds)
       .eq('status', 'active');
 
@@ -107,7 +107,7 @@ export default function MapView() {
       : { data: [] as { post_id: string; image_url: string; display_order: number }[] };
 
     // spot_id → posts のマップ（期間フィルター・推しフィルター適用）
-    const postsBySpot = new Map<string, { id: string; oshi_id: string; user_id: string }[]>();
+    const postsBySpot = new Map<string, { id: string; oshi_id: string; user_id: string; taken_at: string | null }[]>();
     posts?.forEach((p) => {
       // 期間フィルターが指定されている場合、範囲が重ならない投稿を除外
       if (dateFilter && (p.start_date > dateFilter.to || p.end_date < dateFilter.from)) {
@@ -118,7 +118,7 @@ export default function MapView() {
         return;
       }
       const list = postsBySpot.get(p.spot_id) ?? [];
-      list.push({ id: p.id, oshi_id: p.oshi_id, user_id: p.user_id ?? '' });
+      list.push({ id: p.id, oshi_id: p.oshi_id, user_id: p.user_id ?? '', taken_at: p.taken_at ?? null });
       postsBySpot.set(p.spot_id, list);
     });
 
@@ -191,6 +191,7 @@ export default function MapView() {
         oshiId: firstPost?.oshi_id ?? null,
         thumbnail,
         postCount,
+        takenAt: firstPost?.taken_at ?? null,
         spotLat: spot.lat,
         spotLng: spot.lng,
       });
@@ -378,10 +379,11 @@ function buildPopupHtml(params: {
   oshiId: string | null;
   thumbnail: string | null;
   postCount: number;
+  takenAt: string | null;
   spotLat: number;
   spotLng: number;
 }): string {
-  const { spotId, address, oshiColor, oshiName, oshiId, thumbnail, postCount, spotLat, spotLng } = params;
+  const { spotId, address, oshiColor, oshiName, oshiId, thumbnail, postCount, takenAt, spotLat, spotLng } = params;
 
   // oshi color は DB 由来だが CSS color 値として使うため #RRGGBB のみ許可
   const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(oshiColor) ? oshiColor : '#aaaaaa';
@@ -396,6 +398,13 @@ function buildPopupHtml(params: {
     : '';
   const countText = `${postCount}件の投稿`;
 
+  let dateHtml = '';
+  if (takenAt) {
+    const d = new Date(takenAt);
+    const dateText = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+    dateHtml = `<p class="spot-popup-date">${dateText}</p>`;
+  }
+
   const checkinBtn = oshiId
     ? `<button class="spot-popup-checkin" data-spot-id="${escapeHtml(spotId)}" data-oshi-id="${escapeHtml(oshiId)}" data-lat="${spotLat}" data-lng="${spotLng}">チェックイン</button>`
     : '';
@@ -405,6 +414,7 @@ function buildPopupHtml(params: {
       ${thumbHtml}
       <div class="spot-popup-body">
         ${oshiBadge}
+        ${dateHtml}
         <p class="spot-popup-address">${addressText}</p>
         <p class="spot-popup-count">${countText}</p>
         ${checkinBtn}
