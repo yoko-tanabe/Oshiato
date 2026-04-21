@@ -15,7 +15,7 @@ export default function ImagePicker({ files, onChange, maxImages = 4 }: ImagePic
   const inputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<string[]>([]);
 
-  // ファイル変更時にプレビューURLを生成
+  // ファイル変更時にプレビューURLを生成（古いURLはメモリリーク防止のためrevokeする）
   useEffect(() => {
     let cancelled = false;
     Promise.all(files.map((f) => createPreviewUrl(f))).then((urls) => {
@@ -23,7 +23,12 @@ export default function ImagePicker({ files, onChange, maxImages = 4 }: ImagePic
     });
     return () => {
       cancelled = true;
+      // 古いBlob URLを解放してメモリリークを防止
+      previews.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [files]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

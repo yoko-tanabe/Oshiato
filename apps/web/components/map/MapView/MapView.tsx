@@ -15,9 +15,40 @@ import styles from './MapView.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
-// 東京を初期表示
+// 東京を初期表示（localStorageに保存がなければこの値を使用）
 const DEFAULT_CENTER: [number, number] = [139.6917, 35.6895];
 const DEFAULT_ZOOM = 13;
+const MAP_STATE_KEY = 'oshiato_map_state';
+
+/** localStorageから地図の状態を復元する */
+function loadMapState(): { center: [number, number]; zoom: number } | null {
+  try {
+    const raw = localStorage.getItem(MAP_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      Array.isArray(parsed.center) &&
+      parsed.center.length === 2 &&
+      typeof parsed.center[0] === 'number' &&
+      typeof parsed.center[1] === 'number' &&
+      typeof parsed.zoom === 'number'
+    ) {
+      return { center: parsed.center, zoom: parsed.zoom };
+    }
+  } catch {
+    // パース失敗時はデフォルトにフォールバック
+  }
+  return null;
+}
+
+/** 地図の状態をlocalStorageに保存する */
+function saveMapState(center: [number, number], zoom: number): void {
+  try {
+    localStorage.setItem(MAP_STATE_KEY, JSON.stringify({ center, zoom }));
+  } catch {
+    // ストレージ容量超過時は無視
+  }
+}
 
 export default function MapView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -143,6 +174,9 @@ export default function MapView() {
       // チェックイン取得失敗時は通常ピンにフォールバック
     }
 
+    // マップが破棄済みなら何もしない
+    if (!map.getContainer()) return;
+
     // 既存マーカー・ポップアップを削除
     popupsRef.current.forEach((p) => p.remove());
     popupsRef.current = [];
@@ -206,15 +240,16 @@ export default function MapView() {
     });
   }, []);
 
-  // 地図を初期化
+  // 地図を初期化（保存された位置があれば復元）
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
+    const saved = loadMapState();
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: 'mapbox://styles/mapbox/dark-v11',
-      center: DEFAULT_CENTER,
-      zoom: DEFAULT_ZOOM,
+      center: saved?.center ?? DEFAULT_CENTER,
+      zoom: saved?.zoom ?? DEFAULT_ZOOM,
     });
 
     mapRef.current = map;
@@ -223,6 +258,12 @@ export default function MapView() {
     map.on('load', () => {
       setIsMapLoaded(true);
       loadSpots(map);
+    });
+
+    // 地図の移動・ズーム終了時にlocalStorageへ保存
+    map.on('moveend', () => {
+      const center = map.getCenter();
+      saveMapState([center.lng, center.lat], map.getZoom());
     });
 
     return () => {
