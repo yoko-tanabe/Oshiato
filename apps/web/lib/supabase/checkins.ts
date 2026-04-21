@@ -25,13 +25,24 @@ function haversineDistance(
 const MAX_CHECKIN_DISTANCE = 200;
 
 /**
+ * ローカルタイムゾーンの日付を YYYY-MM-DD 形式で返す
+ * toISOString() は UTC を返すため、日本時間との日付ズレを防ぐ
+ */
+function getLocalDateString(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
  * 当日チェックイン済みかどうかを確認
  */
 export async function isCheckedInToday(
   userId: string,
   spotId: string,
 ): Promise<boolean> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
   const { data } = await supabase
     .from('check_ins')
@@ -77,7 +88,7 @@ export async function performCheckIn(params: {
   }
 
   const now = new Date().toISOString();
-  const today = now.split('T')[0];
+  const today = getLocalDateString();
 
   // check_ins に挿入
   const { error: checkInError } = await supabase
