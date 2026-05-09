@@ -67,6 +67,7 @@ export default function MapView() {
     map: mapboxgl.Map,
     dateFilter?: DateRange | null,
     oshiFilter?: string[],
+    toast?: (type: 'success' | 'error', message: string) => void,
   ) => {
     // ① 現在のユーザーの推し色・推し名マップを取得
     const oshiColorMap = new Map<string, string>();
@@ -114,7 +115,11 @@ export default function MapView() {
     const { data: spots, error: spotsError } = await supabase
       .rpc('get_spots_with_coords') as unknown as { data: SpotRow[] | null; error: Error | null };
 
-    if (spotsError || !spots || spots.length === 0) {
+    if (spotsError) {
+      toast?.('error', 'スポットの読み込みに失敗しました');
+      return;
+    }
+    if (!spots || spots.length === 0) {
       return;
     }
 
@@ -257,8 +262,23 @@ export default function MapView() {
     // 地図の読み込み完了後にスポットを取得
     map.on('load', () => {
       setIsMapLoaded(true);
-      loadSpots(map);
+      loadSpots(map, undefined, undefined, showToast);
     });
+
+    // 初回訪問（保存状態なし）かつ Geolocation が使える場合、現在地に flyTo
+    if (!saved && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          map.flyTo({
+            center: [pos.coords.longitude, pos.coords.latitude],
+            zoom: DEFAULT_ZOOM,
+            duration: 800,
+          });
+        },
+        () => { /* 拒否・失敗時は東京のまま */ },
+        { timeout: 5000 },
+      );
+    }
 
     // 地図の移動・ズーム終了時にlocalStorageへ保存
     map.on('moveend', () => {
@@ -272,7 +292,7 @@ export default function MapView() {
       map.remove();
       mapRef.current = null;
     };
-  }, [loadSpots]);
+  }, [loadSpots, showToast]);
 
   // ポップアップ内チェックインボタンのイベント委譲
   useEffect(() => {
@@ -338,7 +358,7 @@ export default function MapView() {
   function handleFilterChange(range: DateRange | null) {
     setFilterRange(range);
     if (mapRef.current) {
-      loadSpots(mapRef.current, range, selectedOshiIds);
+      loadSpots(mapRef.current, range, selectedOshiIds, showToast);
     }
   }
 
@@ -346,7 +366,7 @@ export default function MapView() {
   function handleOshiFilterChange(oshiIds: string[]) {
     setSelectedOshiIds(oshiIds);
     if (mapRef.current) {
-      loadSpots(mapRef.current, filterRange, oshiIds);
+      loadSpots(mapRef.current, filterRange, oshiIds, showToast);
     }
   }
 
