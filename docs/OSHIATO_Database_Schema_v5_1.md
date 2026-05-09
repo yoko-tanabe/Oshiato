@@ -6,9 +6,10 @@
 
 | 項目 | 内容 |
 |------|------|
-| バージョン | v5.1 |
+| バージョン | v6.0 |
 | 作成日 | 2026年3月 |
-| 対応要件定義書 | v5.1 |
+| 更新日 | 2026年5月 |
+| 対応要件定義書 | v6.0 |
 | データベース | PostgreSQL 15+ (Supabase) |
 
 ---
@@ -21,6 +22,7 @@
 | v5.0 | 2026/03 | Phase別テーブル構成に整理、最小構成を明確化 |
 | v5.1 | 2026/03 | Phase 1-2にusers, user_oshis, check_ins, visit_logsを追加、EXIF関連カラム追加 |
 | v5.2 | 2026/03 | check_insにchecked_dateカラムを追加（TIMESTAMPTZ式インデックスの非IMMUTABLE問題に対応） |
+| v6.0 | 2026/05 | Phase構成名称変更（1-4 → A/B/I/J）。`posts.is_public`追加（Phase D）。`spot_quotes`テーブル新規追加（Phase F・言葉オーバーレイ）。`post_images.ocr_text_hash`追加（Phase I・iOS OCR重複マージ）。 |
 
 ---
 
@@ -33,21 +35,28 @@
 │                    Phase別テーブル構成                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Phase 1-2: プロトタイプ構成（9テーブル）                        │
+│  Phase A（完了済み）: プロトタイプ構成（9テーブル）               │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │  users, user_oshis, oshis, areas,                      │   │
 │  │  spots, posts, post_images, check_ins, visit_logs      │   │
 │  │  ※ usersは簡易版（認証なし、端末識別のみ）             │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                            ↓                                   │
-│  Phase 3: MVP構成（+6テーブル = 15テーブル）                    │
+│  Phase B〜H: Web版機能拡張（+2テーブル = 11テーブル）            │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  + spot_quotes（Phase F・言葉オーバーレイ）              │   │
+│  │  ※ usersをPhase Bで本格版に拡張（Supabase Auth連携）   │   │
+│  │  ※ posts.is_publicをPhase Dで追加                      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                            ↓                                   │
+│  Phase I: iOS版（+6テーブル = 17テーブル）                      │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │  + replies, dm_requests, dm_rooms, dm_messages,        │   │
 │  │    blocks, notifications                               │   │
-│  │  ※ usersを本格版に拡張（Supabase Auth連携）            │   │
+│  │  ※ post_images.ocr_text_hashをPhase Iで追加（OCRマージ）│   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                            ↓                                   │
-│  Phase 4: フル構成（+5テーブル = 20テーブル）                   │
+│  Phase J: フル構成（+5テーブル = 22テーブル）                   │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │  + cards, card_images, area_completions, encounters,   │   │
 │  │    reports                                             │   │
@@ -60,26 +69,27 @@
 
 | Phase | テーブル名 | 説明 |
 |-------|-----------|------|
-| **1-2** | spots | スポット情報 |
-| **1-2** | posts | 投稿 |
-| **1-2** | post_images | 投稿画像 |
-| **1-2** | oshis | 推しマスタ |
-| **1-2** | areas | エリアマスタ |
-| **1-2** | users | ユーザー（簡易版） |
-| **1-2** | user_oshis | ユーザー×推し |
-| **1-2** | check_ins | チェックイン |
-| **1-2** | visit_logs | 訪問ログ |
-| **3** | replies | 返信 |
-| **3** | dm_requests | DMリクエスト |
-| **3** | dm_rooms | DMルーム |
-| **3** | dm_messages | DMメッセージ |
-| **3** | blocks | ブロック |
-| **3** | notifications | 通知 |
-| **4** | cards | カード |
-| **4** | card_images | カード画像 |
-| **4** | area_completions | エリアコンプリート |
-| **4** | encounters | すれ違い |
-| **4** | reports | 通報 |
+| **A** | spots | スポット情報 |
+| **A** | posts | 投稿（Phase D で `is_public` カラム追加） |
+| **A** | post_images | 投稿画像（Phase I で `ocr_text_hash` カラム追加） |
+| **A** | oshis | 推しマスタ |
+| **A** | areas | エリアマスタ |
+| **A** | users | ユーザー（Phase B で Supabase Auth 本格版に拡張） |
+| **A** | user_oshis | ユーザー×推し |
+| **A** | check_ins | チェックイン |
+| **A** | visit_logs | 訪問ログ |
+| **F** | spot_quotes | スポットに紐づく言葉（言葉オーバーレイ機能）⭐ |
+| **I** | replies | 返信 |
+| **I** | dm_requests | DMリクエスト |
+| **I** | dm_rooms | DMルーム |
+| **I** | dm_messages | DMメッセージ |
+| **I** | blocks | ブロック |
+| **I** | notifications | 通知 |
+| **J** | cards | カード |
+| **J** | card_images | カード画像 |
+| **J** | area_completions | エリアコンプリート |
+| **J** | encounters | すれ違い |
+| **J** | reports | 通報 |
 
 ---
 
@@ -209,10 +219,11 @@ Phase 1-2では認証なしで、端末識別のみ行います。
 ALTER TABLE users ADD CONSTRAINT uq_users_device_id UNIQUE (device_id);
 ```
 
-**Phase 3での拡張:**
-- `auth_id` を追加（Supabase Auth連携）
+**Phase Bでの拡張（Supabase Auth導入）:**
+- `device_id` ベースから `auth.uid()` ベースに移行
 - `anonymous_name`, `avatar_url`, `bio` 等を追加
 - RLSポリシーを追加
+- **注意**: Phase A のデータは device_id → auth.uid() のマイグレーションスクリプトで移行する
 
 #### user_oshis（ユーザー×推し）
 
@@ -279,6 +290,7 @@ CREATE INDEX idx_spots_area_id ON spots(area_id);
 | taken_at | TIMESTAMPTZ | YES | | 撮影日時（EXIFから抽出） |
 | taken_location | GEOGRAPHY(POINT) | YES | | 撮影場所（EXIFから抽出） |
 | status | TEXT | NO | 'active' | ステータス |
+| is_public | BOOLEAN | NO | true | 公開フラグ（Phase D で追加）|
 | reply_count | INT | NO | 0 | 返信数 |
 | created_at | TIMESTAMPTZ | NO | NOW() | 作成日時 |
 | updated_at | TIMESTAMPTZ | NO | NOW() | 更新日時 |
@@ -307,6 +319,7 @@ CREATE INDEX idx_posts_taken_location ON posts USING GIST(taken_location);
 | post_id | UUID | NO | | 投稿ID (FK) |
 | image_url | TEXT | NO | | 画像URL |
 | display_order | INT | NO | 1 | 表示順 |
+| ocr_text_hash | TEXT | YES | | 写真内テキストのハッシュ（Phase I・iOS OCR重複マージ用）|
 | created_at | TIMESTAMPTZ | NO | NOW() | 作成日時 |
 
 ```sql
@@ -347,11 +360,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_oshis_name_group
 
 ---
 
-### 3.2 Phase 3 追加テーブル
+### 3.2 Phase B: users テーブル拡張（Supabase Auth本格版）
 
-#### users 拡張（本格版）
-
-Phase 3でSupabase Auth連携に拡張します。
+Phase BでSupabase Auth連携に拡張します。
 
 | カラム名 | データ型 | NULL | デフォルト | 説明 |
 |----------|----------|------|------------|------|
@@ -377,6 +388,47 @@ ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own data"
 ON users FOR UPDATE USING (auth.uid() = id);
 ```
+
+### 3.3 Phase F: spot_quotes テーブル（言葉オーバーレイ）⭐
+
+スポットに紐づく「推しの言葉」を格納するテーブル。
+スポット接近時のアニメーション表示と写真合成に使用する。
+
+#### spot_quotes（スポットの言葉）
+
+| カラム名 | データ型 | NULL | デフォルト | 説明 |
+|----------|----------|------|------------|------|
+| id | UUID | NO | gen_random_uuid() | PK |
+| spot_id | UUID | NO | | スポットID (FK) |
+| post_id | UUID | YES | | 投稿ID (FK、任意) |
+| user_id | UUID | NO | | 登録したユーザーID |
+| content | TEXT | NO | | 言葉の内容（100字以内） |
+| is_preset | BOOLEAN | NO | false | プリセット言葉かどうか |
+| created_at | TIMESTAMPTZ | NO | NOW() | 作成日時 |
+
+```sql
+CREATE TABLE spot_quotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  spot_id UUID NOT NULL REFERENCES spots(id) ON DELETE CASCADE,
+  post_id UUID REFERENCES posts(id) ON DELETE SET NULL,
+  user_id UUID NOT NULL,
+  content TEXT NOT NULL,
+  is_preset BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_spot_quotes_content_length CHECK (LENGTH(content) <= 100)
+);
+
+CREATE INDEX idx_spot_quotes_spot_id ON spot_quotes(spot_id);
+```
+
+**プリセット言葉の例（seed data）:**
+- 「また来たよ」
+- 「ここにいたんだね」
+- 「ずっと応援してるよ」
+
+---
+
+### 3.4 Phase I: 追加テーブル（iOS版・DM・通知等）
 
 #### replies（返信）
 
@@ -553,7 +605,7 @@ ON notifications(user_id, is_read, created_at DESC) WHERE is_read = false;
 
 ---
 
-### 3.3 Phase 4 追加テーブル
+### 3.5 Phase J: 追加テーブル（スケール・拡張）
 
 #### cards（カード）
 
@@ -580,7 +632,7 @@ ALTER TABLE cards ADD CONSTRAINT chk_cards_physical_status
 
 ## 5. 初期マイグレーション
 
-### 5.1 Phase 1-2 マイグレーション
+### 5.1 Phase A マイグレーション（プロトタイプ）
 
 ```sql
 -- 拡張機能
@@ -656,6 +708,7 @@ CREATE TABLE posts (
   taken_at TIMESTAMPTZ,  -- 撮影日時（EXIFから抽出）
   taken_location GEOGRAPHY(POINT, 4326),  -- 撮影場所（EXIFから抽出）
   status TEXT NOT NULL DEFAULT 'active',
+  is_public BOOLEAN NOT NULL DEFAULT true,  -- Phase D で追加
   reply_count INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -703,7 +756,36 @@ CREATE INDEX idx_visit_logs_user_visited ON visit_logs(user_id, visited_at DESC)
 CREATE INDEX idx_visit_logs_location ON visit_logs USING GIST(location);
 ```
 
-### 5.2 サンプルデータ
+### 5.2 Phase F マイグレーション（spot_quotes）
+
+```sql
+-- spot_quotes テーブル
+CREATE TABLE spot_quotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  spot_id UUID NOT NULL REFERENCES spots(id) ON DELETE CASCADE,
+  post_id UUID REFERENCES posts(id) ON DELETE SET NULL,
+  user_id UUID NOT NULL,
+  content TEXT NOT NULL,
+  is_preset BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_spot_quotes_content_length CHECK (LENGTH(content) <= 100)
+);
+CREATE INDEX idx_spot_quotes_spot_id ON spot_quotes(spot_id);
+
+-- プリセット言葉のシードデータ
+-- spot_idはNULLにせず、全スポット共通プリセットとして運用する場合は
+-- is_preset = true で spot_id に紐づけず別途管理する設計も検討可
+```
+
+### 5.3 Phase I マイグレーション（OCRハッシュ）
+
+```sql
+-- post_imagesにocr_text_hashカラムを追加（iOS OCR重複マージ用）
+ALTER TABLE post_images ADD COLUMN ocr_text_hash TEXT;
+CREATE INDEX idx_post_images_ocr_hash ON post_images(ocr_text_hash) WHERE ocr_text_hash IS NOT NULL;
+```
+
+### 5.4 サンプルデータ
 
 ```sql
 -- エリア
@@ -898,6 +980,9 @@ $$;
 | check_ins | user_id, checked_at | B-tree | チェックイン履歴 |
 | oshis | name, COALESCE(group_name, '') | B-tree (UNIQUE) | 同名＋同グループの重複防止 |
 | user_oshis | user_id | B-tree | ユーザーの推し取得 |
+| posts | is_public, status, created_at | B-tree | 公開投稿のタイムライン（Phase D〜） |
+| spot_quotes | spot_id | B-tree | スポット別の言葉取得（Phase F〜） |
+| post_images | ocr_text_hash | B-tree (PARTIAL) | OCR重複マージ（Phase I〜、NULLを除外） |
 
 ### 9.2 GiSTインデックスの説明
 
@@ -927,4 +1012,4 @@ CREATE INDEX idx_posts_status_created ON posts(status, created_at DESC);
 
 ---
 
-**OSHIATO データベース定義書 v5.1**
+**OSHIATO データベース定義書 v6.0**

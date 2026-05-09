@@ -6,9 +6,10 @@
 
 | 項目 | 内容 |
 |------|------|
-| バージョン | v5.1 |
+| バージョン | v6.0 |
 | 作成日 | 2026年3月 |
-| 対応要件定義書 | v5.1 |
+| 最終更新 | 2026年5月 |
+| 対応要件定義書 | v6.0 |
 
 ---
 
@@ -17,6 +18,7 @@
 | バージョン | 日付 | 変更内容 |
 |------------|------|----------|
 | v5.1 | 2026/03 | 初版作成 |
+| v6.0 | 2026/05 | 開発フェーズをA〜Jに変更。推しレコメンデーションAPI（Phase E）追加。スポット言葉API spot_quotes（Phase F）追加。DMAPIをPhase I（iOS限定）に移行。投稿APIにis_publicフィルター追加（Phase D）。 |
 
 ---
 
@@ -58,19 +60,20 @@ let supabase = SupabaseClient(
 
 ### 1.3 Phase別API
 
-| Phase | 認証 | 主要API |
-|-------|------|---------|
-| **Phase 1-2** | 端末識別（簡易） | スポット、投稿、推し管理、チェックイン、訪問ログ |
-| **Phase 3** | Supabase Auth | 上記 + 返信、DM、通知、カード |
-| **Phase 4** | 同上 | 上記 + ジオフェンシング、物理カード |
+| Phase | プラットフォーム | 認証 | 主要API |
+|-------|----------------|------|---------|
+| **Phase A** | Web | 端末識別（簡易） | スポット、投稿、推し管理、チェックイン、訪問ログ |
+| **Phase B〜H** | Web | Supabase Auth | 上記 + 返信、レコメンデーション、スポット言葉、検索、通知 |
+| **Phase I** | iOS（メイン） | Supabase Auth | 全機能 + DM、重複投稿マージ（Apple Intelligence OCR） |
+| **Phase J** | 両方 | 同上 | スケール・拡張 |
 
 ---
 
 ## 2. 認証API
 
-### 2.1 Phase 1-2: 端末識別（簡易認証）
+### 2.1 Phase A: 端末識別（簡易認証）
 
-Phase 1-2では本格的な認証は行わず、端末IDでユーザーを識別します。
+Phase Aでは本格的な認証は行わず、端末IDでユーザーを識別します。
 
 #### ユーザー登録/取得
 
@@ -99,7 +102,7 @@ async function getOrCreateUser(deviceId: string) {
 }
 ```
 
-### 2.2 Phase 3: Supabase Auth
+### 2.2 Phase B: Supabase Auth
 
 #### OAuth認証（Google/Apple/X）
 
@@ -306,6 +309,7 @@ interface CreatePostParams {
     longitude: number
     address?: string
   }
+  isPublic?: boolean     // 公開/非公開（Phase D〜、デフォルト: true）
 }
 ```
 
@@ -344,7 +348,8 @@ async function createPost(params: CreatePostParams) {
       taken_at: params.takenAt,
       taken_location: params.takenLocation 
         ? `POINT(${params.takenLocation.longitude} ${params.takenLocation.latitude})`
-        : null
+        : null,
+      is_public: params.isPublic ?? true  // Phase D〜: 公開/非公開設定
     })
     .select()
     .single()
@@ -410,6 +415,8 @@ interface GetPostsParams {
   limit?: number
   offset?: number
   oshiId?: string
+  userId?: string        // 指定ユーザーの投稿に絞る
+  publicOnly?: boolean   // Phase D〜: trueで公開投稿のみ取得
 }
 
 async function getPosts(params: GetPostsParams = {}) {
@@ -425,6 +432,7 @@ async function getPosts(params: GetPostsParams = {}) {
       start_date,
       end_date,
       taken_at,
+      is_public,
       reply_count,
       created_at,
       user:users(id, display_name),
@@ -438,6 +446,15 @@ async function getPosts(params: GetPostsParams = {}) {
 
   if (params.oshiId) {
     query = query.eq('oshi_id', params.oshiId)
+  }
+
+  if (params.userId) {
+    query = query.eq('user_id', params.userId)
+  }
+
+  // Phase D〜: 他ユーザーの投稿を閲覧する場合は公開のみ
+  if (params.publicOnly) {
+    query = query.eq('is_public', true)
   }
 
   const { data, error } = await query
@@ -905,7 +922,7 @@ async function getVisitStats(userId: string) {
 
 ---
 
-## 8. 返信API（Phase 3）
+## 8. 返信API（Phase C〜）
 
 ### 8.1 返信一覧取得
 
@@ -955,7 +972,236 @@ async function createReply(postId: string, userId: string, content: string) {
 
 ---
 
-## 9. DM API（Phase 3）
+## 9. 推しレコメンデーションAPI（Phase E）
+
+協調フィルタリングを使い、趣味が近いユーザーが推しているアイドルをレコメンドします。外部MLサービスは不要で、PostgreSQL（Supabase）のSQL集計のみで実装します。
+
+### 9.1 レコメンド推しスポット取得
+
+自分の推しリストと重なりが大きいユーザーを探し、そのユーザーが推している（自分が未登録の）アイドルのスポットを返します。
+
+**実装:**
+
+```typescript
+interface RecommendedSpot {
+  spot_id: string
+  latitude: number
+  longitude: number
+  oshi_id: string
+  oshi_name: string
+  group_name: string | null
+  category: string
+  score: number          // 同じ好みのユーザー数（スコア）
+  reason_count: number   // 「X人が推しています」の X
+}
+
+async function getRecommendedSpots(userId: string): Promise<RecommendedSpot[]> {
+  const { data, error } = await supabase
+    .rpc('get_recommended_spots', { target_user_id: userId })
+
+  if (error) throw error
+  return data ?? []
+}
+```
+
+**PostgreSQL関数 `get_recommended_spots`:**
+
+```sql
+CREATE OR REPLACE FUNCTION get_recommended_spots(target_user_id UUID)
+RETURNS TABLE (
+  spot_id        UUID,
+  latitude       DOUBLE PRECISION,
+  longitude      DOUBLE PRECISION,
+  oshi_id        UUID,
+  oshi_name      TEXT,
+  group_name     TEXT,
+  category       TEXT,
+  score          BIGINT,
+  reason_count   BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  WITH
+  -- 自分の推しリスト
+  my_oshis AS (
+    SELECT oshi_id FROM user_oshis WHERE user_id = target_user_id
+  ),
+  -- 自分と推しが被るユーザー（類似ユーザー）
+  similar_users AS (
+    SELECT uo.user_id, COUNT(*) AS overlap
+    FROM user_oshis uo
+    WHERE uo.oshi_id IN (SELECT oshi_id FROM my_oshis)
+      AND uo.user_id <> target_user_id
+    GROUP BY uo.user_id
+    HAVING COUNT(*) >= 1
+  ),
+  -- 類似ユーザーが推している自分未登録の推し
+  candidate_oshis AS (
+    SELECT uo.oshi_id, COUNT(DISTINCT su.user_id) AS score
+    FROM user_oshis uo
+    JOIN similar_users su ON su.user_id = uo.user_id
+    WHERE uo.oshi_id NOT IN (SELECT oshi_id FROM my_oshis)
+    GROUP BY uo.oshi_id
+    ORDER BY score DESC
+    LIMIT 5
+  )
+  -- 候補推しのスポットを返す
+  SELECT
+    s.id           AS spot_id,
+    ST_Y(s.location::geometry) AS latitude,
+    ST_X(s.location::geometry) AS longitude,
+    o.id           AS oshi_id,
+    o.name         AS oshi_name,
+    o.group_name,
+    o.category,
+    co.score,
+    co.score       AS reason_count
+  FROM candidate_oshis co
+  JOIN oshis o ON o.id = co.oshi_id
+  JOIN posts p ON p.oshi_id = o.id AND p.status = 'active' AND p.is_public = true
+  JOIN spots s ON s.id = p.spot_id
+  ORDER BY co.score DESC, s.id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+**レスポンス:**
+
+```json
+{
+  "data": [
+    {
+      "spot_id": "uuid",
+      "latitude": 35.6812,
+      "longitude": 139.7671,
+      "oshi_id": "uuid",
+      "oshi_name": "推しB",
+      "group_name": "グループX",
+      "category": "idol",
+      "score": 5,
+      "reason_count": 5
+    }
+  ]
+}
+```
+
+> **フロントエンド表示**: `reason_count` を使い「同じ好みの 5 人が推しています」のようなレコメンド理由テキストをマップポップアップに表示します。レコメンドスポットは通常ピンとは異なる特別アイコン（キラキラ / 別色）でマップに重ねて表示します。
+
+---
+
+## 10. スポット言葉API（Phase F）
+
+スポットに紐づく「推しの言葉」（quotes）を管理します。投稿者が独自の言葉を登録でき、プリセット言葉も使用できます。取得した言葉はフロントエンドで降ってくるアニメーションや写真合成（Canvas API）に使用します。
+
+### 10.1 スポットの言葉一覧取得
+
+```typescript
+interface SpotQuote {
+  id: string
+  spot_id: string
+  content: string
+  is_preset: boolean
+  created_at: string
+  user: { id: string; display_name: string } | null
+}
+
+async function getSpotQuotes(spotId: string): Promise<SpotQuote[]> {
+  const { data, error } = await supabase
+    .from('spot_quotes')
+    .select(`
+      id,
+      spot_id,
+      content,
+      is_preset,
+      created_at,
+      user:users(id, display_name)
+    `)
+    .eq('spot_id', spotId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
+}
+```
+
+**レスポンス:**
+
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "spot_id": "uuid",
+      "content": "ここで写真撮ったよ！",
+      "is_preset": false,
+      "created_at": "2026-05-01T12:00:00Z",
+      "user": { "id": "uuid", "display_name": "ファンA" }
+    },
+    {
+      "id": "uuid",
+      "spot_id": "uuid",
+      "content": "推しに会えた場所",
+      "is_preset": true,
+      "created_at": "2026-05-01T00:00:00Z",
+      "user": null
+    }
+  ]
+}
+```
+
+### 10.2 言葉を投稿
+
+```typescript
+interface CreateSpotQuoteParams {
+  spotId: string
+  userId: string
+  postId?: string   // 関連する投稿（任意）
+  content: string   // 最大100文字
+  isPreset?: boolean
+}
+
+async function createSpotQuote(params: CreateSpotQuoteParams) {
+  if (params.content.length > 100) {
+    throw new Error('言葉は100文字以内で入力してください')
+  }
+
+  const { data, error } = await supabase
+    .from('spot_quotes')
+    .insert({
+      spot_id: params.spotId,
+      user_id: params.userId,
+      post_id: params.postId ?? null,
+      content: params.content,
+      is_preset: params.isPreset ?? false
+    })
+    .select()
+    .single()
+
+  return { data, error }
+}
+```
+
+### 10.3 プリセット言葉の初期データ
+
+```sql
+-- Phase F マイグレーション時に投入するプリセット
+INSERT INTO spot_quotes (spot_id, user_id, content, is_preset)
+-- ※ spot_id は各スポット登録時に動的に付与
+-- プリセット言葉の例:
+-- 「ここで会えた」「推しの足跡」「聖地巡礼」「また来たい」「ありがとう」
+```
+
+> **フロントエンド実装メモ**:
+> - 近接検知: `navigator.geolocation.watchPosition()` でスポット座標との距離をHaversine公式で計算（半径50m以内で発火）
+> - アニメーション: CSS `@keyframes` + `transform: translateY` で文字が上から降ってくる演出
+> - Canvas合成: `drawImage()` で写真 → `fillText()` で言葉 → `toDataURL()` でダウンロード
+> - トグル: 「言葉オーバーレイ ON/OFF」スイッチをスポット詳細ページに設置
+
+---
+
+## 11. DM API（Phase I・iOS限定）
+
+> **注意**: DM機能はiOS版（Phase I）でのみ実装します。Web版では提供しません。
 
 ### 9.1 DMリクエスト送信
 
@@ -1123,9 +1369,9 @@ function subscribeToDmMessages(roomId: string, onMessage: (message: any) => void
 
 ---
 
-## 10. 画像API
+## 12. 画像API
 
-### 10.1 画像アップロード
+### 12.1 画像アップロード
 
 **実装:**
 
@@ -1155,7 +1401,7 @@ async function uploadImage(
 }
 ```
 
-### 10.2 EXIF抽出
+### 12.2 EXIF抽出
 
 **実装（Web版）:**
 
@@ -1204,9 +1450,9 @@ func extractExifData(from asset: PHAsset) -> (location: CLLocationCoordinate2D?,
 
 ---
 
-## 11. エラーハンドリング
+## 13. エラーハンドリング
 
-### 11.1 エラーコード
+### 13.1 エラーコード
 
 | コード | 説明 |
 |--------|------|
@@ -1216,7 +1462,7 @@ func extractExifData(from asset: PHAsset) -> (location: CLLocationCoordinate2D?,
 | `42501` | RLS権限エラー |
 | `AUTH_INVALID` | 認証エラー |
 
-### 11.2 エラーハンドリング例
+### 13.2 エラーハンドリング例
 
 ```typescript
 async function safeApiCall<T>(
@@ -1248,7 +1494,7 @@ async function safeApiCall<T>(
 
 ---
 
-## 12. レート制限
+## 14. レート制限
 
 Supabaseのデフォルトレート制限：
 
@@ -1283,9 +1529,9 @@ async function apiCallWithRetry<T>(
 
 ---
 
-## 13. セキュリティ
+## 15. セキュリティ
 
-### 13.1 RLSポリシー
+### 15.1 RLSポリシー
 
 すべてのテーブルでRow Level Securityを有効化し、適切なポリシーを設定します。
 
@@ -1306,7 +1552,7 @@ ON posts FOR UPDATE
 USING (auth.uid() = user_id);
 ```
 
-### 13.2 入力バリデーション
+### 15.2 入力バリデーション
 
 ```typescript
 import { z } from 'zod'
@@ -1326,9 +1572,9 @@ function validateCreatePost(data: unknown) {
 
 ---
 
-## 14. エラーレスポンス具体例
+## 16. エラーレスポンス具体例
 
-### 14.1 Supabaseエラーの形式
+### 16.1 Supabaseエラーの形式
 
 ```typescript
 // Supabaseのエラーオブジェクト
@@ -1340,7 +1586,7 @@ interface PostgrestError {
 }
 ```
 
-### 14.2 よくあるエラーと対処
+### 16.2 よくあるエラーと対処
 
 #### レコードが見つからない
 
@@ -1401,7 +1647,7 @@ const { data, error } = await supabase
 "指定されたスポットが存在しません"
 ```
 
-### 14.3 エラーメッセージ変換ユーティリティ
+### 16.3 エラーメッセージ変換ユーティリティ
 
 ```typescript
 /**
@@ -1422,9 +1668,9 @@ function getErrorMessage(error: PostgrestError): string {
 
 ---
 
-## 15. ページネーション
+## 17. ページネーション
 
-### 15.1 オフセットベース（シンプル）
+### 17.1 オフセットベース（シンプル）
 
 タイムラインなど、通常のリスト表示に使用します。
 
@@ -1466,7 +1712,7 @@ async function getPostsWithPagination(params: PaginationParams) {
 }
 ```
 
-### 15.2 カーソルベース（無限スクロール）
+### 17.2 カーソルベース（無限スクロール）
 
 スムーズな無限スクロールに使用します。
 
@@ -1504,7 +1750,7 @@ async function getPostsWithCursor(params: CursorParams) {
 }
 ```
 
-### 15.3 使い分けの指針
+### 17.3 使い分けの指針
 
 | 方式 | 用途 | メリット | デメリット |
 |------|------|----------|------------|
@@ -1518,9 +1764,9 @@ async function getPostsWithCursor(params: CursorParams) {
 
 ---
 
-## 16. 外部API連携
+## 18. 外部API連携
 
-### 16.1 Mapbox Geocoding API（住所検索→座標変換）
+### 18.1 Mapbox Geocoding API（住所検索→座標変換）
 
 投稿時にEXIF GPS情報がない写真をアップロードした場合、ユーザーが住所・場所名から位置を指定するために使用。
 
@@ -1560,5 +1806,5 @@ interface GeocodingFeature {
 
 ---
 
-**OSHIATO API定義書 v5.1**
+**OSHIATO API定義書 v6.0**
 

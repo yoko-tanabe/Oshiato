@@ -23,6 +23,7 @@ Phase 1–2 で Web / iOS MVP を実装し、将来的に Android や OOH 連携
 - 画像: iPhone からアップロードした JPEG/HEIC を WebP 変換し、EXIF/GPS 情報を抽出して Supabase Storage + DB に保存します。
 
 
+
 ## 機能（MVP）
 - 写真アップロードと EXIF/GPS 抽出
 - マップ上での投稿表示・クラスタリング
