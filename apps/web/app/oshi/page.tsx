@@ -76,6 +76,7 @@ export default function OshiPage() {
           {oshiList.map((item) => (
             <li key={item.oshi_id}>
               <OshiCard
+                oshiId={item.oshi_id}
                 name={item.name}
                 groupName={item.group_name}
                 themeColor={item.theme_color}

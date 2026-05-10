@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { LocateFixed } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentUser } from '@/lib/user';
 import { performCheckIn } from '@/lib/supabase/checkins';
@@ -11,6 +10,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
 import MapFilter, { type DateRange } from '@/components/map/MapFilter/MapFilter';
 import OshiFilter, { type OshiOption } from '@/components/map/OshiFilter/OshiFilter';
+import MapSearchBar, { type SearchState } from '@/components/search/MapSearchBar/MapSearchBar';
+import SearchResultSheet from '@/components/map/SearchResultSheet/SearchResultSheet';
 import styles from './MapView.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -55,11 +56,11 @@ export default function MapView() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
-  const [isLocating, setIsLocating] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [filterRange, setFilterRange] = useState<DateRange | null>(null);
   const [selectedOshiIds, setSelectedOshiIds] = useState<string[]>([]);
   const [userOshiList, setUserOshiList] = useState<OshiOption[]>([]);
+  const [searchState, setSearchState] = useState<SearchState | null>(null);
   const { showToast } = useToast();
   const { userId } = useCurrentUser();
   const userIdRef = useRef<string | null>(null);
@@ -261,26 +262,26 @@ export default function MapView() {
 
     mapRef.current = map;
 
-    // 地図の読み込み完了後にスポットを取得
+    // 現在地ボタン + 青いドット表示
+    const geolocate = new mapboxgl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: false,
+      showUserLocation: true,
+      showAccuracyCircle: false,
+    });
+    map.addControl(geolocate, 'bottom-right');
+    geolocate.on('error', () => {
+      showToast('error', '位置情報を取得できませんでした');
+    });
+
+    // 地図の読み込み完了後にスポットを取得。初回訪問時は現在地に移動
     map.on('load', () => {
       setIsMapLoaded(true);
       loadSpots(map, undefined, undefined, showToast);
+      if (!saved) {
+        geolocate.trigger();
+      }
     });
-
-    // 初回訪問（保存状態なし）かつ Geolocation が使える場合、現在地に flyTo
-    if (!saved && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          map.flyTo({
-            center: [pos.coords.longitude, pos.coords.latitude],
-            zoom: DEFAULT_ZOOM,
-            duration: 800,
-          });
-        },
-        () => { /* 拒否・失敗時は東京のまま */ },
-        { timeout: 5000 },
-      );
-    }
 
     // 地図の移動・ズーム終了時にlocalStorageへ保存
     map.on('moveend', () => {
@@ -388,30 +389,11 @@ export default function MapView() {
     }
   }
 
-  // 現在地に移動
-  function handleLocate() {
-    if (!navigator.geolocation || !mapRef.current) return;
-
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        mapRef.current?.flyTo({
-          center: [pos.coords.longitude, pos.coords.latitude],
-          zoom: 15,
-          duration: 1200,
-        });
-        setIsLocating(false);
-      },
-      () => {
-        setIsLocating(false);
-        showToast('error', '位置情報を取得できませんでした');
-      }
-    );
-  }
 
   return (
     <div className={styles.wrapper}>
       <div ref={mapContainerRef} className={styles.map} />
+      <MapSearchBar onSearchChange={setSearchState} />
       {isMapLoaded && <MapFilter onFilterChange={handleFilterChange} />}
       {isMapLoaded && (
         <OshiFilter
@@ -425,13 +407,12 @@ export default function MapView() {
           <LoadingSpinner size="large" />
         </div>
       )}
-      <button
-        className={`${styles.locateButton} ${isLocating ? styles.locating : ''}`}
-        onClick={handleLocate}
-        aria-label="現在地に移動"
-      >
-        <LocateFixed size={18} strokeWidth={1.5} />
-      </button>
+      {searchState && (
+        <SearchResultSheet
+          state={searchState}
+          onClose={() => setSearchState(null)}
+        />
+      )}
     </div>
   );
 }

@@ -253,3 +253,31 @@ h6 {
   color: #4ade80;
   cursor: default;
 }
+
+/* ============================================================
+   Mapbox GeolocateControl — ダークテーマ対応
+   ============================================================ */
+.mapboxgl-ctrl-geolocate {
+  background-color: #232323 !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 8px !important;
+}
+
+.mapboxgl-ctrl-geolocate:hover {
+  background-color: #2a2a2a !important;
+}
+
+.mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon {
+  filter: invert(1) brightness(0.8);
+}
+
+.mapboxgl-ctrl-geolocate-background .mapboxgl-ctrl-icon,
+.mapboxgl-ctrl-geolocate-waiting .mapboxgl-ctrl-icon {
+  filter: none;
+}
+
+/* タブバー分だけ上にずらす */
+.mapboxgl-ctrl-bottom-right {
+  bottom: 88px !important;
+  right: 12px !important;
+}

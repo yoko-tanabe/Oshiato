@@ -26,7 +26,7 @@
 - [x] `posts` テーブルの RLS 有効化（`ALTER TABLE posts ENABLE ROW LEVEL SECURITY`）
 - [x] `posts` テーブルの SELECT/INSERT/UPDATE/DELETE ポリシー設定
 - [x] `user_oshis` テーブルのポリシー：本人のみ閲覧可に変更（プライバシー保護）
-- [ ] `posts_select_all` ポリシーの削除（Supabase Dashboard で手動実行が必要）
+- [x] `posts_select_all` ポリシーの削除（Supabase Dashboard で手動実行済み）
   - SQL: `DROP POLICY IF EXISTS "posts_select_all" ON posts;`
 
 ## UI改善（追加対応）
@@ -37,8 +37,8 @@
 
 ## 完了確認
 
-- [ ] `DROP POLICY "posts_select_all"` 実行後に非公開投稿が他ユーザーに見えないこと
-- [ ] `npx next build` が通る
-- [ ] `npx next lint` が通る
+- [x] `DROP POLICY "posts_select_all"` 実行後に非公開投稿が他ユーザーに見えないこと
+- [x] `npx next build` が通る
+- [x] `npx next lint` が通る（警告2件のみ、エラーなし）
 - [ ] ブラウザでコンソールエラーなし
 - [ ] モバイルサイズ（375px）で表示が崩れない
