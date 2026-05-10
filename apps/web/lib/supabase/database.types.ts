@@ -137,6 +137,7 @@ export type Database = {
           user_id: string | null;
           category: 'ooh' | 'popup' | 'event' | 'other';
           comment: string | null;
+          is_public: boolean;
           start_date: string;
           end_date: string;
           taken_at: string | null;
@@ -153,6 +154,7 @@ export type Database = {
           user_id?: string | null;
           category: 'ooh' | 'popup' | 'event' | 'other';
           comment?: string | null;
+          is_public?: boolean;
           start_date: string;
           end_date: string;
           taken_at?: string | null;
@@ -168,6 +170,7 @@ export type Database = {
           user_id?: string | null;
           category?: 'ooh' | 'popup' | 'event' | 'other';
           comment?: string | null;
+          is_public?: boolean;
           start_date?: string;
           end_date?: string;
           taken_at?: string | null;

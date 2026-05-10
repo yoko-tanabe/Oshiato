@@ -194,8 +194,9 @@ export default function MapView() {
       if (!coords[0] || !coords[1]) return;
 
       const spotPosts = postsBySpot.get(spot.id) ?? [];
-      // フィルター適用後に投稿がないスポットは非表示（推しフィルター時）
-      if (oshiFilter && oshiFilter.length > 0 && spotPosts.length === 0) return;
+      // 可視投稿がないスポットは非表示
+      // （他ユーザーの非公開投稿のみ → RLS でフィルタ済み、またはフィルター適用後ゼロ）
+      if (spotPosts.length === 0) return;
 
       const firstPost = spotPosts[0] ?? null;
       const oshiColor = firstPost ? (oshiColorMap.get(firstPost.oshi_id) ?? '#aaaaaa') : '#aaaaaa';
