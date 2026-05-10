@@ -17,7 +17,7 @@ const TABS: Tab[] = [
   { href: '/timeline', icon: LayoutGrid, label: 'タイムライン' },
   { href: '/post/new', icon: Plus, label: '投稿', isCenter: true },
   { href: '/trajectory', icon: Layers, label: '軌跡' },
-  { href: '/oshi', icon: User, label: 'マイページ' },
+  { href: '/mypage', icon: User, label: 'マイページ' },
 ];
 
 export default function TabBar() {
