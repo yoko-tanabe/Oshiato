@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MapPin } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { useCurrentUser } from '@/lib/user/useCurrentUser';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState/EmptyState';
@@ -70,6 +70,7 @@ export default function VisitList() {
     if (isUserLoading || !userId) return;
 
     async function fetchVisits() {
+      const supabase = createClient();
       // ① visit_logs を取得
       const { data: logs } = await supabase
         .from('visit_logs')

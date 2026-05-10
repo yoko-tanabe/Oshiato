@@ -22,6 +22,7 @@
 | v5.1 | 2026/03 | Tailwind CSS削除、CSS Modulesに変更 |
 | v5.2 | 2026/04 | Next.js `use client` コンポーネント設計方針を追加 |
 | v6.0 | 2026/05 | 開発順序変更（Web先行実装→iOS版メイン）。Phase構成をA〜Jに刷新。新機能3件の技術追加（協調フィルタリング・Canvas API/watchPosition・Apple Intelligence Vision.framework）。 |
+| v6.1 | 2026/05 | Phase B 完了。`@supabase/ssr` 導入・RLS 全テーブル設定・認証ページ実装。 |
 
 ---
 
@@ -99,17 +100,35 @@
 
 ---
 
-### 2.2 Phase B: 認証基盤
+### 2.2 Phase B: 認証基盤（完了）
 
 Phase Aの構成に加えて:
 
 | カテゴリ | 技術 | 用途 |
 |----------|------|------|
-| **認証** | Supabase Auth | Google / メールアドレス認証 |
-| **認可** | RLS（Row Level Security） | テーブルごとのアクセス制御 |
-| **セッション管理** | JWT（Supabase Auth内蔵） | ログイン状態の維持 |
+| **認証** | Supabase Auth | メールアドレス/パスワード認証（Google/Apple は Phase I で追加） |
+| **セッション管理** | `@supabase/ssr` + Cookie | Next.js SSR 対応のセッション管理 |
+| **認可** | RLS（Row Level Security） | 全テーブル + Storage バケットにポリシーを設定 |
+| **ルート保護** | Next.js Middleware | 未認証ユーザーを `/auth/login` にリダイレクト |
 
-**主な作業:** device_id → `auth.uid()` のDBマイグレーション（影響範囲が広いため慎重に実施）
+**実装済み内容:**
+- `lib/supabase/client.ts`: `createBrowserClient`（シングルトンから関数に変更）
+- `lib/supabase/server.ts`: `createServerClient` + Cookie 読み書き
+- `lib/supabase/middleware.ts`: セッション更新 / 未認証リダイレクト / `profile_completed` チェック
+- `middleware.ts`: 薄いラッパー（静的ファイルを除く全ルートに適用）
+- 認証ページ: `/auth/login`, `/auth/register`, `/auth/callback`, `/setup-profile`
+- ログアウトボタン: `/oshi` ページに実装
+
+**データ移行方針:** device_id ベースの既存データは破棄（開発中ダミーデータのため移行コスト > 価値）
+
+**開発中の注意事項:**
+- Supabase 無料プランのメール送信レート制限により "Confirm email" を OFF に設定
+- テストユーザーは Supabase ダッシュボード → Authentication → Users から手動作成
+- 本番リリース前に "Confirm email" を ON に戻すこと
+
+**RLS 設定対象:**
+- テーブル: `users`, `spots`, `posts`, `post_images`, `check_ins`, `user_oshis`, `visit_logs`
+- Storage: `post-images` バケット（`storage.objects` テーブルへのポリシー）
 
 ---
 

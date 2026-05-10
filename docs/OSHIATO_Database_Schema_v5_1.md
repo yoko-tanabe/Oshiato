@@ -23,6 +23,7 @@
 | v5.1 | 2026/03 | Phase 1-2にusers, user_oshis, check_ins, visit_logsを追加、EXIF関連カラム追加 |
 | v5.2 | 2026/03 | check_insにchecked_dateカラムを追加（TIMESTAMPTZ式インデックスの非IMMUTABLE問題に対応） |
 | v6.0 | 2026/05 | Phase構成名称変更（1-4 → A/B/I/J）。`posts.is_public`追加（Phase D）。`spot_quotes`テーブル新規追加（Phase F・言葉オーバーレイ）。`post_images.ocr_text_hash`追加（Phase I・iOS OCR重複マージ）。 |
+| v6.1 | 2026/05 | Phase B 完了。`users` テーブルを Supabase Auth 本格版に移行（`device_id` 削除・`profile_completed` / `avatar_url` 追加・RLS 設定）。全テーブルに RLS ポリシー設定完了。 |
 
 ---
 
@@ -202,28 +203,36 @@
 
 ### 3.1 Phase 1-2 テーブル（プロトタイプ）
 
-#### users（ユーザー - 簡易版）
+#### users（ユーザー）
 
-Phase 1-2では認証なしで、端末識別のみ行います。
+**Phase A（完了）**: `device_id` による端末識別のみ。認証なし。
+**Phase B（完了）**: Supabase Auth と連携した本格版に移行済み。既存データは破棄（ADR-004）。
 
 | カラム名 | データ型 | NULL | デフォルト | 説明 |
 |----------|----------|------|------------|------|
-| id | UUID | NO | gen_random_uuid() | PK |
-| device_id | TEXT | NO | | 端末識別子 |
-| display_name | TEXT | YES | | 表示名 |
+| id | UUID | NO | | PK / `auth.users(id)` への外部キー |
+| display_name | TEXT | YES | | 表示名（匿名ネーム） |
+| avatar_url | TEXT | YES | | アバター画像URL |
+| profile_completed | BOOLEAN | NO | false | プロフィール設定完了フラグ |
 | created_at | TIMESTAMPTZ | NO | NOW() | 作成日時 |
 | updated_at | TIMESTAMPTZ | NO | NOW() | 更新日時 |
 
 ```sql
--- ユニーク制約
-ALTER TABLE users ADD CONSTRAINT uq_users_device_id UNIQUE (device_id);
+-- auth.users との連携
+ALTER TABLE users ADD CONSTRAINT fk_users_auth
+  FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- RLS ポリシー
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "users_select_own" ON users FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "users_insert_own" ON users FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "users_update_own" ON users FOR UPDATE USING (auth.uid() = id);
 ```
 
-**Phase Bでの拡張（Supabase Auth導入）:**
-- `device_id` ベースから `auth.uid()` ベースに移行
-- `anonymous_name`, `avatar_url`, `bio` 等を追加
-- RLSポリシーを追加
-- **注意**: Phase A のデータは device_id → auth.uid() のマイグレーションスクリプトで移行する
+**profile_completed フラグの役割:**
+- 新規登録直後は `false`
+- middleware が `/setup-profile` へリダイレクト
+- 匿名ネーム入力完了後に `true` に更新 → アプリ本体へ
 
 #### user_oshis（ユーザー×推し）
 

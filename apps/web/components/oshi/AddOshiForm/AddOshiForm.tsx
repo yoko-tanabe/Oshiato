@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import styles from './AddOshiForm.module.css';
 
 // デフォルトのプリセットカラー（8色）
@@ -88,6 +88,7 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
       return;
     }
 
+    const supabase = createClient();
     const { data } = await supabase
       .from('oshis')
       .select('id, name, group_name')
@@ -208,6 +209,7 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
 
     setIsSubmitting(true);
     setError(null);
+    const supabase = createClient();
 
     let oshiId = selectedOshiId;
 

@@ -8,22 +8,25 @@ export type Database = {
       users: {
         Row: {
           id: string;
-          device_id: string;
           display_name: string | null;
+          avatar_url: string | null;
+          profile_completed: boolean;
           created_at: string;
           updated_at: string;
         };
         Insert: {
-          id?: string;
-          device_id: string;
+          id: string;
           display_name?: string | null;
+          avatar_url?: string | null;
+          profile_completed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          device_id?: string;
           display_name?: string | null;
+          avatar_url?: string | null;
+          profile_completed?: boolean;
           updated_at?: string;
         };
         Relationships: [];

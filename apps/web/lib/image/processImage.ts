@@ -16,15 +16,36 @@ async function convertHeicToImageBitmap(file: File): Promise<ImageBitmap> {
 }
 
 /**
- * ファイルがHEIC/HEIF形式かどうかを判定する
+ * ファイルがHEIC/HEIF形式かどうかを拡張子・MIMEタイプで判定する
  */
-function isHeic(file: File): boolean {
+function isHeicByName(file: File): boolean {
   const name = file.name.toLowerCase();
   return (
     file.type === 'image/heic' ||
     file.type === 'image/heif' ||
     name.endsWith('.heic') ||
     name.endsWith('.heif')
+  );
+}
+
+/**
+ * ファイル先頭のマジックバイトでHEIC/HEIFを判定する
+ * LINEなどのSNS経由で .jpg 拡張子のままHEICが届くケースに対応
+ */
+async function isHeicByMagicBytes(file: File): Promise<boolean> {
+  const buffer = await file.slice(0, 12).arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  // HEIC は ISO Base Media File Format: offset 4-7 が 'ftyp', offset 8-11 がブランド名
+  const ftyp = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
+  if (ftyp !== 'ftyp') return false;
+  const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]).toLowerCase();
+  return (
+    brand.startsWith('heic') ||
+    brand.startsWith('heix') ||
+    brand.startsWith('hevc') ||
+    brand.startsWith('hevx') ||
+    brand.startsWith('mif1') ||
+    brand.startsWith('msf1')
   );
 }
 
@@ -55,7 +76,7 @@ export async function createPreviewUrl(file: File): Promise<string> {
   URL.revokeObjectURL(blobUrl);
   try {
     let imageBitmap: ImageBitmap;
-    if (isHeic(file)) {
+    if (isHeicByName(file)) {
       imageBitmap = await convertHeicToImageBitmap(file);
     } else {
       return ''; // HEIC以外で表示不可 → フォールバック
@@ -71,16 +92,29 @@ export async function createPreviewUrl(file: File): Promise<string> {
 export async function processImage(file: File): Promise<ProcessedImage> {
   let imageBitmap: ImageBitmap;
 
-  if (isHeic(file)) {
-    // Safari/iOSはHEICをネイティブで扱えるので直接試みる
+  const heicByName = isHeicByName(file);
+
+  if (heicByName) {
+    // 拡張子・MIMEタイプがHEICの場合: Safari はネイティブ対応なので直接試みる
     try {
       imageBitmap = await createImageBitmap(file);
     } catch {
-      // ネイティブ非対応ブラウザ（Chrome等）は@jsquash/heicで変換
+      // Chrome等のネイティブ非対応ブラウザは heic-decode で変換
       imageBitmap = await convertHeicToImageBitmap(file);
     }
   } else {
-    imageBitmap = await createImageBitmap(file);
+    try {
+      imageBitmap = await createImageBitmap(file);
+    } catch {
+      // .jpg拡張子でも実体がHEICの場合がある（LINE経由のiPhone写真など）
+      const heicByBytes = await isHeicByMagicBytes(file);
+      if (heicByBytes) {
+        imageBitmap = await convertHeicToImageBitmap(file);
+      } else {
+        // その他の特殊なJPEG等は <img> 要素経由で再試行
+        imageBitmap = await loadImageBitmapViaElement(file);
+      }
+    }
   }
 
   const webp = await resizeAndConvert(imageBitmap, 1920, 0.8);
@@ -89,6 +123,24 @@ export async function processImage(file: File): Promise<ProcessedImage> {
   imageBitmap.close();
 
   return { webp, thumbnail };
+}
+
+async function loadImageBitmapViaElement(file: File): Promise<ImageBitmap> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      createImageBitmap(img).then(resolve).catch(() =>
+        reject(new Error('この画像形式には対応していません。JPEGまたはPNG形式でお試しください'))
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('この画像形式には対応していません。JPEGまたはPNG形式でお試しください'));
+    };
+    img.src = url;
+  });
 }
 
 /**

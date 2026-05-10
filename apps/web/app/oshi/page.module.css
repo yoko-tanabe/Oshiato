@@ -5,6 +5,12 @@
   padding: 24px 16px 100px;
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .heading {
   font-size: 20px;
   font-weight: 700;
