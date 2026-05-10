@@ -10,7 +10,7 @@ import { extractExif, type ExifData } from '@/lib/exif/extractExif';
 import { processImage } from '@/lib/image/processImage';
 import { calcDefaultPeriod } from '@/lib/date/periodHelper';
 import { findOrCreateSpot } from '@/lib/supabase/spots';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { useCurrentUser } from '@/lib/user/useCurrentUser';
 import styles from './PostForm.module.css';
 
@@ -69,6 +69,8 @@ export default function PostForm() {
   useEffect(() => {
     if (!userId) return;
 
+    const supabase = createClient();
+
     type UserOshiRow = {
       oshi_id: string;
       theme_color: string;
@@ -102,6 +104,7 @@ export default function PostForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const supabase = createClient();
 
     if (images.length === 0) {
       setError('写真を1枚以上選択してください');

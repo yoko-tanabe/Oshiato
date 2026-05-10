@@ -2,6 +2,10 @@
 node_modules/
 package-lock.json
 
+# Next.js ビルド成果物
+.next/
+out/
+
 # 環境変数（秘密キーを含むため絶対にコミットしない）
 .env.local
 .env*.local

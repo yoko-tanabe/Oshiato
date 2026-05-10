@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { useCurrentUser } from '@/lib/user';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import OshiCard from '@/components/oshi/OshiCard/OshiCard';
 import AddOshiForm from '@/components/oshi/AddOshiForm/AddOshiForm';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState/EmptyState';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
+import LogoutButton from '@/components/ui/LogoutButton/LogoutButton';
 import styles from './page.module.css';
 
 type OshiItem = {
@@ -34,6 +35,7 @@ export default function OshiPage() {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+    const supabase = createClient();
 
     supabase
       .from('user_oshis')
@@ -58,7 +60,10 @@ export default function OshiPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.heading}>推し管理</h1>
+      <div className={styles.header}>
+        <h1 className={styles.heading}>推し管理</h1>
+        <LogoutButton />
+      </div>
 
       {oshiList.length === 0 ? (
         <EmptyState

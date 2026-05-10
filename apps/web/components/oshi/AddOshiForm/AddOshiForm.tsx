@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import styles from './AddOshiForm.module.css';
 
 // デフォルトのプリセットカラー（8色）
@@ -88,6 +88,7 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
       return;
     }
 
+    const supabase = createClient();
     const { data } = await supabase
       .from('oshis')
       .select('id, name, group_name')
@@ -168,7 +169,7 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
     if (!isUsed(newColor)) setThemeColor(newColor);
   }, [hue, usedColors]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ドラッグ操作の共通ハンドラ
+  // ドラッグ操作の共通ハンドラ（useMemoで事前計算しJSX内でのref渡しを回避）
   function startDrag(handler: (clientX: number) => void) {
     return (e: React.MouseEvent | React.TouchEvent) => {
       const getX = (ev: MouseEvent | TouchEvent) =>
@@ -193,6 +194,11 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
     };
   }
 
+  // eslint-disable-next-line react-hooks/refs
+  const hueDragHandler = useMemo(() => startDrag(handleHueInteraction), [handleHueInteraction]);
+  // eslint-disable-next-line react-hooks/refs
+  const lightnessDragHandler = useMemo(() => startDrag(handleLightnessInteraction), [handleLightnessInteraction]);
+
   const spectrumColor = hslToHex(hue, 70, lightness);
   const huePosition = (hue / 360) * 100;
   const lightnessPosition = ((lightness - 20) / 70) * 100;
@@ -203,6 +209,7 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
 
     setIsSubmitting(true);
     setError(null);
+    const supabase = createClient();
 
     let oshiId = selectedOshiId;
 
@@ -394,8 +401,8 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
             <div
               ref={hueBarRef}
               className={styles.hueBar}
-              onMouseDown={startDrag(handleHueInteraction)}
-              onTouchStart={startDrag(handleHueInteraction)}
+              onMouseDown={hueDragHandler}
+              onTouchStart={hueDragHandler}
             >
               <div
                 className={styles.barThumb}
@@ -411,8 +418,8 @@ export default function AddOshiForm({ userId, usedColors, onAdded }: Props) {
               style={{
                 background: `linear-gradient(to right, ${hslToHex(hue, 70, 20)}, ${hslToHex(hue, 70, 55)}, ${hslToHex(hue, 70, 90)})`,
               }}
-              onMouseDown={startDrag(handleLightnessInteraction)}
-              onTouchStart={startDrag(handleLightnessInteraction)}
+              onMouseDown={lightnessDragHandler}
+              onTouchStart={lightnessDragHandler}
             >
               <div
                 className={styles.barThumb}

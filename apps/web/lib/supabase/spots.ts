@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { createClient } from './client';
 
 /**
  * 指定した緯度経度から半径50m以内のスポットを検索する
@@ -8,6 +8,7 @@ import { supabase } from './client';
  * （supabase/migrations/ 内のSQLを実行すること）
  */
 export async function findNearbySpot(lat: number, lng: number): Promise<string | null> {
+  const supabase = createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any).rpc('find_nearby_spot', {
@@ -28,6 +29,7 @@ export async function findNearbySpot(lat: number, lng: number): Promise<string |
  * 新しいスポットを作成して spot_id を返す
  */
 export async function createSpot(lat: number, lng: number): Promise<string | null> {
+  const supabase = createClient();
 
   // PostGIS POINT形式: ST_MakePoint(lng, lat) — 経度が先
   const locationWkt = `POINT(${lng} ${lat})`;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { useCurrentUser } from '@/lib/user/useCurrentUser';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState/EmptyState';
@@ -57,6 +57,7 @@ export default function SpotDetail({ spotId }: SpotDetailProps) {
     if (isUserLoading || !userId) return;
 
     async function fetchSpotDetail() {
+      const supabase = createClient();
       // ① スポットの座標・住所を取得（RPC経由）
       type SpotRow = { id: string; lng: number; lat: number; address: string | null };
       const { data: allSpots } = await supabase

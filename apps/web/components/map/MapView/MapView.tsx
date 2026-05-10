@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { LocateFixed } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
-import { getOrCreateUser } from '@/lib/user/getOrCreateUser';
+import { createClient } from '@/lib/supabase/client';
+import { useCurrentUser } from '@/lib/user';
 import { performCheckIn } from '@/lib/supabase/checkins';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
@@ -61,20 +61,23 @@ export default function MapView() {
   const [selectedOshiIds, setSelectedOshiIds] = useState<string[]>([]);
   const [userOshiList, setUserOshiList] = useState<OshiOption[]>([]);
   const { showToast } = useToast();
+  const { userId } = useCurrentUser();
+  const userIdRef = useRef<string | null>(null);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
   // Supabaseからスポットを取得してピンを描画
   const loadSpots = useCallback(async (
     map: mapboxgl.Map,
     dateFilter?: DateRange | null,
     oshiFilter?: string[],
+    toast?: (type: 'success' | 'error', message: string) => void,
   ) => {
     // ① 現在のユーザーの推し色・推し名マップを取得
+    const supabase = createClient();
     const oshiColorMap = new Map<string, string>();
     const oshiNameMap = new Map<string, string>();
-    let currentUserId = '';
+    const currentUserId = userIdRef.current ?? '';
     try {
-      currentUserId = await getOrCreateUser();
-
       // user_oshis から oshi_id と theme_color を取得
       const { data: userOshis } = await supabase
         .from('user_oshis')
@@ -114,7 +117,11 @@ export default function MapView() {
     const { data: spots, error: spotsError } = await supabase
       .rpc('get_spots_with_coords') as unknown as { data: SpotRow[] | null; error: Error | null };
 
-    if (spotsError || !spots || spots.length === 0) {
+    if (spotsError) {
+      toast?.('error', 'スポットの読み込みに失敗しました');
+      return;
+    }
+    if (!spots || spots.length === 0) {
       return;
     }
 
@@ -162,11 +169,10 @@ export default function MapView() {
     // ⑤ チェックイン済みスポットを取得
     const checkedInSpots = new Set<string>();
     try {
-      const userId = await getOrCreateUser();
       const { data: checkIns } = await supabase
         .from('check_ins')
         .select('spot_id')
-        .eq('user_id', userId)
+        .eq('user_id', currentUserId)
         .in('spot_id', spotIds);
 
       checkIns?.forEach((ci) => checkedInSpots.add(ci.spot_id));
@@ -257,8 +263,23 @@ export default function MapView() {
     // 地図の読み込み完了後にスポットを取得
     map.on('load', () => {
       setIsMapLoaded(true);
-      loadSpots(map);
+      loadSpots(map, undefined, undefined, showToast);
     });
+
+    // 初回訪問（保存状態なし）かつ Geolocation が使える場合、現在地に flyTo
+    if (!saved && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          map.flyTo({
+            center: [pos.coords.longitude, pos.coords.latitude],
+            zoom: DEFAULT_ZOOM,
+            duration: 800,
+          });
+        },
+        () => { /* 拒否・失敗時は東京のまま */ },
+        { timeout: 5000 },
+      );
+    }
 
     // 地図の移動・ズーム終了時にlocalStorageへ保存
     map.on('moveend', () => {
@@ -272,7 +293,7 @@ export default function MapView() {
       map.remove();
       mapRef.current = null;
     };
-  }, [loadSpots]);
+  }, [loadSpots, showToast]);
 
   // ポップアップ内チェックインボタンのイベント委譲
   useEffect(() => {
@@ -293,7 +314,13 @@ export default function MapView() {
       btn.setAttribute('disabled', 'true');
 
       try {
-        const userId = await getOrCreateUser();
+        const userId = userIdRef.current;
+        if (!userId) {
+          btn.textContent = 'チェックイン';
+          btn.removeAttribute('disabled');
+          showToast('error', 'ログインが必要です');
+          return;
+        }
 
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
@@ -334,11 +361,21 @@ export default function MapView() {
     return () => container.removeEventListener('click', handleCheckinClick);
   }, [showToast]);
 
+  // userId確定後にスポットを再読み込み
+  // マップロード時に useCurrentUser の非同期解決が間に合わず
+  // userIdRef.current が null のままだった場合、推し色がグレーになる問題を修正する
+  useEffect(() => {
+    if (!isMapLoaded || !mapRef.current || !userId) return;
+    loadSpots(mapRef.current, filterRange, selectedOshiIds, showToast);
+    // filterRange / selectedOshiIds の変更時は各ハンドラーが loadSpots を呼ぶため除外
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, isMapLoaded]);
+
   // 期間フィルター変更時にスポットを再読み込み
   function handleFilterChange(range: DateRange | null) {
     setFilterRange(range);
     if (mapRef.current) {
-      loadSpots(mapRef.current, range, selectedOshiIds);
+      loadSpots(mapRef.current, range, selectedOshiIds, showToast);
     }
   }
 
@@ -346,7 +383,7 @@ export default function MapView() {
   function handleOshiFilterChange(oshiIds: string[]) {
     setSelectedOshiIds(oshiIds);
     if (mapRef.current) {
-      loadSpots(mapRef.current, filterRange, oshiIds);
+      loadSpots(mapRef.current, filterRange, oshiIds, showToast);
     }
   }
 

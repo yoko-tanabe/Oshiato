@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { LocateFixed, MapPinOff } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
-import { getOrCreateUser } from '@/lib/user/getOrCreateUser';
+import { createClient } from '@/lib/supabase/client';
+import { useCurrentUser } from '@/lib/user';
 import styles from './TrajectoryMap.module.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -31,17 +31,16 @@ export default function TrajectoryMap() {
   const [isLocating, setIsLocating] = useState(false);
   const [isEmpty, setIsEmpty] = useState(false);
   const [stats, setStats] = useState<{ count: number; earliest: string; latest: string } | null>(null);
+  const { userId } = useCurrentUser();
+  const userIdRef = useRef<string | null>(null);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
-  /**
-   * 訪問データを取得して地図に軌跡を描画する。
-   *
-   * Mapbox GL JS の addSource / addLayer を使い、
-   * GeoJSON 形式でポイント（丸）とライン（軌跡線）を描く。
-   * 個別の Marker を使う方法より、大量のポイントでもパフォーマンスが良い。
-   */
   const loadTrajectory = useCallback(async (map: mapboxgl.Map) => {
+    const supabase = createClient();
+
     // ① ユーザーID取得
-    const userId = await getOrCreateUser();
+    const userId = userIdRef.current;
+    if (!userId) return;
 
     // ② 推しのテーマカラーを取得
     const oshiColorMap = new Map<string, string>();

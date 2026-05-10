@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { useCurrentUser } from '@/lib/user/useCurrentUser';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState/EmptyState';
@@ -63,6 +63,7 @@ export default function TimelineGrid() {
     if (isUserLoading || !userId) return;
 
     async function fetchTimeline() {
+      const supabase = createClient();
       // ① 自分の投稿を新しい順に取得
       const { data: posts } = await supabase
         .from('posts')

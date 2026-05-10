@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { createClient } from './client';
 
 /**
  * 2点間の距離をメートルで返す（Haversine 公式）
@@ -42,6 +42,7 @@ export async function isCheckedInToday(
   userId: string,
   spotId: string,
 ): Promise<boolean> {
+  const supabase = createClient();
   const today = getLocalDateString();
 
   const { data } = await supabase
@@ -70,6 +71,7 @@ export async function performCheckIn(params: {
   userLat: number;
   userLng: number;
 }): Promise<{ success: boolean; error?: string }> {
+  const supabase = createClient();
   const { userId, spotId, oshiId, spotLat, spotLng, userLat, userLng } = params;
 
   // 距離チェック
