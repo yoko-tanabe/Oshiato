@@ -235,7 +235,10 @@ apps/web/
 │   │
 │   ├── oshi/
 │   │   ├── page.tsx             # 推し管理（OshiCard + AddOshiForm）
-│   │   └── page.module.css
+│   │   ├── page.module.css
+│   │   └── [id]/
+│   │       └── spots/
+│   │           └── page.tsx     # 推し別スポット一覧 → OshiSpotList（Phase E）
 │   │
 │   ├── visits/
 │   │   └── page.tsx             # 訪問ログ → VisitList
@@ -259,7 +262,12 @@ apps/web/
 │   ├── map/                     # 地図関連
 │   │   ├── MapView/             #   Mapbox地図 + スポットピン + チェックイン
 │   │   ├── MapFilter/           #   期間フィルターバー（今日/明日/今週/カスタム）
-│   │   └── OshiFilter/          #   推しフィルター（ドロップダウン複数選択）
+│   │   ├── OshiFilter/          #   推しフィルター（ドロップダウン複数選択）
+│   │   └── SearchResultSheet/   #   検索結果パネル（下からスライド）（Phase E）
+│   │
+│   ├── search/                  # 検索関連（Phase E〜）
+│   │   ├── MapSearchBar/        #   マップ上部の常時表示検索バー
+│   │   └── SearchResultCard/    #   検索結果カード（OshiSpotList でも再利用）
 │   │
 │   ├── post/                    # 投稿関連
 │   │   ├── PostForm/            #   投稿フォーム
@@ -279,8 +287,9 @@ apps/web/
 │   │   └── TrajectoryTabs/      #   軌跡マップ/訪問ログ切り替えタブ
 │   │
 │   ├── oshi/                    # 推し関連
-│   │   ├── OshiCard/            #   推しカード表示
-│   │   └── AddOshiForm/         #   推し追加フォーム（サジェスト検索＋HSLカラーピッカー）
+│   │   ├── OshiCard/            #   推しカード表示（Phase E でスポットリンク追加）
+│   │   ├── AddOshiForm/         #   推し追加フォーム（サジェスト検索＋HSLカラーピッカー）
+│   │   └── OshiSpotList/        #   推し別スポット一覧（Phase E）
 │   │
 │   ├── visits/                  # 訪問ログ関連
 │   │   └── VisitList/           #   訪問ログ一覧
@@ -300,7 +309,8 @@ apps/web/
 │   │   ├── middleware.ts        #   ミドルウェア用セッション更新ロジック
 │   │   ├── database.types.ts    #   DB型定義（手動管理。Phase 3以降自動生成予定）
 │   │   ├── spots.ts             #   スポット検索・作成・投稿更新・投稿削除
-│   │   └── checkins.ts          #   チェックイン実行・距離計算
+│   │   ├── checkins.ts          #   チェックイン実行・距離計算
+│   │   └── search.ts            #   検索クエリ（searchSpots / findNearbySpotsForDisplay / getSpotsByOshi / getRecommendedSpots）（Phase E）
 │   │
 │   ├── exif/
 │   │   └── extractExif.ts       #   EXIF抽出（GPS・撮影日時）
