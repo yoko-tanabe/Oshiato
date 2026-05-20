@@ -6,7 +6,7 @@
 
 | 項目 | 内容 |
 |------|------|
-| バージョン | v1.2 |
+| バージョン | v1.3 |
 | 作成日 | 2026年3月 |
 | 対応CLAUDE.md | v1.0 |
 
@@ -19,6 +19,7 @@
 | v1.0 | 2026/03 | 初版作成 |
 | v1.1 | 2026/03/22 | `.claude/`, ルート `package.json`, `tsconfig.json` を追加 |
 | v1.2 | 2026/04/04 | `apps/web/` の components / lib 構造を実態に合わせて更新 |
+| v1.3 | 2026/05/10 | Phase B・C 実装完了。`app/auth/`・`app/mypage/`・`components/auth/`・`components/mypage/`・`SpotEditForm/`・`LogoutButton/` 追加。`lib/supabase/middleware.ts`・`middleware.ts` 追加。`getOrCreateUser.ts` 削除。 |
 
 ---
 
@@ -198,10 +199,28 @@ apps/
 
 ```
 apps/web/
+├── middleware.ts                # ルート保護（未認証 → /auth/login にリダイレクト）
+│
 ├── app/                         # App Router（ページ）
 │   ├── layout.tsx               # 共通レイアウト（ToastProvider含む）
 │   ├── page.tsx                 # トップページ（マップ）
 │   ├── globals.css              # グローバルCSS + Mapboxポップアップスタイル
+│   │
+│   ├── auth/
+│   │   ├── login/
+│   │   │   └── page.tsx         # ログイン → LoginForm
+│   │   ├── register/
+│   │   │   └── page.tsx         # 新規登録 → RegisterForm
+│   │   └── callback/
+│   │       └── route.ts         # OAuth コールバック（骨格）
+│   │
+│   ├── setup-profile/
+│   │   └── page.tsx             # 初回プロフィール設定 → SetupProfileForm
+│   │
+│   ├── mypage/
+│   │   ├── page.tsx             # マイページ → MyPageClient
+│   │   └── profile/
+│   │       └── page.tsx         # プロフィール編集 → ProfileEditForm
 │   │
 │   ├── spot/
 │   │   └── [id]/
@@ -216,7 +235,10 @@ apps/web/
 │   │
 │   ├── oshi/
 │   │   ├── page.tsx             # 推し管理（OshiCard + AddOshiForm）
-│   │   └── page.module.css
+│   │   ├── page.module.css
+│   │   └── [id]/
+│   │       └── spots/
+│   │           └── page.tsx     # 推し別スポット一覧 → OshiSpotList（Phase E）
 │   │
 │   ├── visits/
 │   │   └── page.tsx             # 訪問ログ → VisitList
@@ -228,10 +250,24 @@ apps/web/
 │   ├── layout/                  # レイアウト
 │   │   └── AppShell/            #   アプリ骨格（TabBar含む）
 │   │
+│   ├── auth/                    # 認証関連（Phase B〜）
+│   │   ├── LoginForm/           #   ログインフォーム
+│   │   ├── RegisterForm/        #   新規登録フォーム
+│   │   └── SetupProfileForm/    #   初回プロフィール設定フォーム
+│   │
+│   ├── mypage/                  # マイページ関連（Phase C〜）
+│   │   ├── MyPageClient/        #   統計ダッシュボード（投稿数・訪問数・推し別集計）
+│   │   └── ProfileEditForm/     #   表示名編集フォーム
+│   │
 │   ├── map/                     # 地図関連
 │   │   ├── MapView/             #   Mapbox地図 + スポットピン + チェックイン
 │   │   ├── MapFilter/           #   期間フィルターバー（今日/明日/今週/カスタム）
-│   │   └── OshiFilter/          #   推しフィルター（ドロップダウン複数選択）
+│   │   ├── OshiFilter/          #   推しフィルター（ドロップダウン複数選択）
+│   │   └── SearchResultSheet/   #   検索結果パネル（下からスライド）（Phase E）
+│   │
+│   ├── search/                  # 検索関連（Phase E〜）
+│   │   ├── MapSearchBar/        #   マップ上部の常時表示検索バー
+│   │   └── SearchResultCard/    #   検索結果カード（OshiSpotList でも再利用）
 │   │
 │   ├── post/                    # 投稿関連
 │   │   ├── PostForm/            #   投稿フォーム
@@ -239,8 +275,9 @@ apps/web/
 │   │   └── LocationPicker/      #   手動位置指定（住所検索 + 地図タップ）
 │   │
 │   ├── spot/                    # スポット関連
-│   │   ├── SpotDetail/          #   スポット詳細ページ本体
-│   │   └── CheckInButton/       #   チェックインボタン（React版）
+│   │   ├── SpotDetail/          #   スポット詳細ページ本体（編集・削除ボタン含む）
+│   │   ├── SpotEditForm/        #   投稿編集フォーム（カテゴリ・コメント）
+│   │   └── CheckInButton/       #   チェックインボタン
 │   │
 │   ├── timeline/                # タイムライン関連
 │   │   └── TimelineGrid/        #   月別写真グリッド
@@ -250,14 +287,16 @@ apps/web/
 │   │   └── TrajectoryTabs/      #   軌跡マップ/訪問ログ切り替えタブ
 │   │
 │   ├── oshi/                    # 推し関連
-│   │   ├── OshiCard/            #   推しカード表示
-│   │   └── AddOshiForm/         #   推し追加フォーム（サジェスト検索＋HSLカラーピッカー）
+│   │   ├── OshiCard/            #   推しカード表示（Phase E でスポットリンク追加）
+│   │   ├── AddOshiForm/         #   推し追加フォーム（サジェスト検索＋HSLカラーピッカー）
+│   │   └── OshiSpotList/        #   推し別スポット一覧（Phase E）
 │   │
 │   ├── visits/                  # 訪問ログ関連
 │   │   └── VisitList/           #   訪問ログ一覧
 │   │
 │   └── ui/                      # 共通UI
-│       ├── TabBar/              #   タブバー（5タブ）
+│       ├── TabBar/              #   タブバー（5タブ。マイページタブは /mypage を指す）
+│       ├── LogoutButton/        #   ログアウトボタン
 │       ├── EmptyState/          #   空状態表示（アイコン+メッセージ+CTA）
 │       ├── LoadingSpinner/      #   ローディングスピナー（S/M/L）
 │       └── Toast/               #   Toast通知（success/error/warning）
@@ -265,11 +304,13 @@ apps/web/
 │
 ├── lib/                         # ユーティリティ・サービス
 │   ├── supabase/                # Supabase関連
-│   │   ├── client.ts            #   クライアント初期化
-│   │   ├── server.ts            #   サーバーサイドクライアント
-│   │   ├── database.types.ts    #   DB型定義
-│   │   ├── spots.ts             #   スポット検索・作成ヘルパー
-│   │   └── checkins.ts          #   チェックイン実行・距離計算
+│   │   ├── client.ts            #   ブラウザ用クライアント（createBrowserClient）
+│   │   ├── server.ts            #   サーバー用クライアント（createServerClient + Cookie）
+│   │   ├── middleware.ts        #   ミドルウェア用セッション更新ロジック
+│   │   ├── database.types.ts    #   DB型定義（手動管理。Phase 3以降自動生成予定）
+│   │   ├── spots.ts             #   スポット検索・作成・投稿更新・投稿削除
+│   │   ├── checkins.ts          #   チェックイン実行・距離計算
+│   │   └── search.ts            #   検索クエリ（searchSpots / findNearbySpotsForDisplay / getSpotsByOshi / getRecommendedSpots）（Phase E）
 │   │
 │   ├── exif/
 │   │   └── extractExif.ts       #   EXIF抽出（GPS・撮影日時）
@@ -281,8 +322,7 @@ apps/web/
 │   │   └── periodHelper.ts      #   期間計算（週の月曜/日曜・カテゴリ別デフォルト）
 │   │
 │   └── user/
-│       ├── getOrCreateUser.ts   #   匿名ユーザー取得/作成
-│       ├── useCurrentUser.ts    #   現在ユーザーフック
+│       ├── useCurrentUser.ts    #   現在ユーザーフック（userId + displayName を返す）
 │       └── index.ts             #   re-export
 │
 ├── public/                      # 静的ファイル

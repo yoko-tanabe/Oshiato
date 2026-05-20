@@ -933,6 +933,116 @@ $$;
 
 **使用箇所**: `MapView.tsx` — `supabase.rpc('get_spots_with_coords')` で呼び出し
 
+### 7.3 検索パネル用近傍スポットファンクション（Phase E）
+
+`find_nearby_spots`（7.1）はチェックイン用（半径50m・1件）。検索パネル用に別関数を追加。
+
+```sql
+CREATE OR REPLACE FUNCTION find_nearby_spots_for_display(
+  input_lat     DOUBLE PRECISION,
+  input_lng     DOUBLE PRECISION,
+  radius_meters INT DEFAULT 500,
+  result_limit  INT DEFAULT 20
+)
+RETURNS TABLE (
+  spot_id          UUID,
+  lat              DOUBLE PRECISION,
+  lng              DOUBLE PRECISION,
+  address          TEXT,
+  distance_meters  DOUBLE PRECISION,
+  oshi_name        TEXT,
+  group_name       TEXT,
+  thumbnail_url    TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT ON (s.id)
+    s.id,
+    ST_Y(s.location::geometry),
+    ST_X(s.location::geometry),
+    s.address,
+    ST_Distance(s.location, ST_MakePoint(input_lng, input_lat)::geography),
+    o.name,
+    o.group_name,
+    pi.image_url
+  FROM spots s
+  JOIN posts p   ON s.id = p.spot_id
+  JOIN oshis o   ON p.oshi_id = o.id
+  LEFT JOIN post_images pi ON pi.post_id = p.id
+  WHERE p.is_public = true
+    AND p.status = 'active'
+    AND ST_DWithin(s.location, ST_MakePoint(input_lng, input_lat)::geography, radius_meters)
+  ORDER BY s.id, distance_meters ASC
+  LIMIT result_limit;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+**使用箇所**: `lib/supabase/search.ts` — `findNearbySpotsForDisplay()` で呼び出し
+
+---
+
+## 7.4 推しレコメンデーションファンクション（Phase E）
+
+協調フィルタリング：自分と推しが被るユーザーを集計し、未登録のアイドルのスポットをスコア順に返す。
+
+```sql
+CREATE OR REPLACE FUNCTION get_recommended_spots(target_user_id UUID)
+RETURNS TABLE (
+  spot_id       UUID,
+  latitude      DOUBLE PRECISION,
+  longitude     DOUBLE PRECISION,
+  oshi_id       UUID,
+  oshi_name     TEXT,
+  group_name    TEXT,
+  category      TEXT,
+  score         BIGINT,
+  reason_count  BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  WITH
+  my_oshis AS (
+    SELECT oshi_id FROM user_oshis WHERE user_id = target_user_id
+  ),
+  similar_users AS (
+    SELECT uo.user_id, COUNT(*) AS overlap
+    FROM user_oshis uo
+    WHERE uo.oshi_id IN (SELECT oshi_id FROM my_oshis)
+      AND uo.user_id <> target_user_id
+    GROUP BY uo.user_id
+  ),
+  candidate_oshis AS (
+    SELECT uo.oshi_id, SUM(su.overlap) AS score, COUNT(DISTINCT su.user_id) AS reason_count
+    FROM user_oshis uo
+    JOIN similar_users su ON uo.user_id = su.user_id
+    WHERE uo.oshi_id NOT IN (SELECT oshi_id FROM my_oshis)
+    GROUP BY uo.oshi_id
+    ORDER BY score DESC
+    LIMIT 5
+  )
+  SELECT
+    s.id,
+    ST_Y(s.location::geometry),
+    ST_X(s.location::geometry),
+    p.oshi_id,
+    o.name,
+    o.group_name,
+    p.category,
+    co.score,
+    co.reason_count
+  FROM candidate_oshis co
+  JOIN oshis o   ON o.id = co.oshi_id
+  JOIN posts p   ON p.oshi_id = o.id AND p.is_public = true AND p.status = 'active'
+  JOIN spots s   ON s.id = p.spot_id
+  LIMIT 30;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+**使用箇所**: `lib/supabase/search.ts` — `getRecommendedSpots()` で呼び出し  
+**備考**: レコメンド結果が0件の場合はマップにピンを表示しない（D-004）。マップへのピン追加は Step 8 で実装予定。
+
 ---
 
 ## 8. データ型選定理由

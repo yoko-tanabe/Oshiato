@@ -42,6 +42,7 @@ export default function PostForm() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [comment, setComment] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
 
   // カテゴリ変更時にデフォルト期間を自動設定
   function handleCategoryChange(newCategory: Category) {
@@ -173,6 +174,7 @@ export default function PostForm() {
           user_id: userId,
           category,
           comment: comment.trim() || null,
+          is_public: isPublic,
           start_date: finalStartDate,
           end_date: finalEndDate,
           taken_at: firstExif?.takenAt ?? null,
@@ -330,6 +332,28 @@ export default function PostForm() {
           rows={3}
         />
         <p className={styles.charCount}>{comment.length} / 300</p>
+      </section>
+
+      {/* 公開設定 */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>公開設定</h2>
+        <label className={styles.toggleRow}>
+          <span className={styles.toggleLabel}>
+            {isPublic ? '公開する' : '自分だけ'}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isPublic}
+            className={`${styles.toggle} ${isPublic ? styles.toggleOn : ''}`}
+            onClick={() => setIsPublic((v) => !v)}
+          />
+        </label>
+        <p className={styles.toggleHint}>
+          {isPublic
+            ? '地図上で他のユーザーにも見えます'
+            : '自分のマップにのみ表示されます'}
+        </p>
       </section>
 
       {/* エラー表示 */}

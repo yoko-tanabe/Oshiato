@@ -1,0 +1,110 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* カテゴリ */
+.categoryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.categoryButton {
+  padding: 8px 4px;
+  font-size: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.categoryButtonActive {
+  border-color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
+  background: color-mix(in srgb, var(--color-accent-primary) 12%, transparent);
+}
+
+/* コメント */
+.textarea {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  padding: 10px 12px;
+  resize: none;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.textarea:focus {
+  border-color: var(--color-accent-primary);
+}
+
+.count {
+  font-size: 11px;
+  color: var(--color-text-disabled);
+  text-align: right;
+}
+
+/* ボタン行 */
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.cancelButton {
+  flex: 1;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: border-color var(--transition-fast);
+}
+
+.cancelButton:hover:not(:disabled) {
+  border-color: var(--color-text-secondary);
+}
+
+.saveButton {
+  flex: 2;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-primary);
+  color: #1a1a2e;
+  transition: opacity var(--transition-fast);
+}
+
+.saveButton:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.saveButton:disabled,
+.cancelButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

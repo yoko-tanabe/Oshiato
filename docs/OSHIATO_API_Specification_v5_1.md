@@ -1085,7 +1085,74 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 }
 ```
 
-> **フロントエンド表示**: `reason_count` を使い「同じ好みの 5 人が推しています」のようなレコメンド理由テキストをマップポップアップに表示します。レコメンドスポットは通常ピンとは異なる特別アイコン（キラキラ / 別色）でマップに重ねて表示します。
+> **フロントエンド表示**: `reason_count` を使い「同じ好みの 5 人が推しています」のようなレコメンド理由テキストをマップポップアップに表示します。レコメンドスポットは通常ピンとは異なる特別アイコン（キラキラ / 別色）でマップに重ねて表示します。  
+> **備考**: レコメンド結果が0件のときはピンを表示しない（D-004）。マップへのピン追加は Step 8 で実装予定。
+
+### 9.2 キーワード検索（Phase E）
+
+クライアントサイドの ILIKE クエリ。全文検索インデックス（`tsvector`）は Phase G で検討（D-002）。
+
+**実装（`lib/supabase/search.ts`）:**
+
+```typescript
+// ① 推し名検索：キーワードに一致する oshi_id を取得
+const { data: oshiMatches } = await supabase
+  .from('oshis')
+  .select('id')
+  .or(`name.ilike.%${keyword}%,group_name.ilike.%${keyword}%`)
+
+// ② 投稿をコメント OR 推し名で絞り込み（FK ネスト結合は使わない）
+const { data: posts } = await supabase
+  .from('posts')
+  .select('id, spot_id, oshi_id, comment, category')
+  .eq('is_public', true)
+  .eq('status', 'active')
+  .or(`comment.ilike.%${keyword}%,oshi_id.in.(${oshiIds.join(',')})`)
+
+// ③ 推し名・サムネイルは個別クエリで取得
+const { data: oshiRows } = await supabase.from('oshis').select('id, name, group_name').in('id', oshiIds)
+const { data: imageRows } = await supabase.from('post_images').select('post_id, image_url').in('post_id', postIds)
+```
+
+> **注意**: FK ネスト結合構文（例: `oshis ( name )`）は `database.types.ts` の `Relationships` が空のため動作しない。必ず個別クエリで取得すること（CLAUDE.md 参照）。
+
+### 9.3 近傍スポット取得（Phase E）
+
+検索パネル用。`find_nearby_spots`（チェックイン用）とは別関数（D-001）。
+
+**実装:**
+
+```typescript
+async function findNearbySpotsForDisplay(lat: number, lng: number, radiusMeters = 500) {
+  const { data, error } = await supabase.rpc('find_nearby_spots_for_display', {
+    input_lat: lat,
+    input_lng: lng,
+    radius_meters: radiusMeters,
+    result_limit: 20,
+  })
+  if (error) throw error
+  return data ?? []
+}
+```
+
+**レスポンス:**
+
+```json
+{
+  "data": [
+    {
+      "spot_id": "uuid",
+      "lat": 35.6812,
+      "lng": 139.7671,
+      "address": "東京都渋谷区",
+      "distance_meters": 123.4,
+      "oshi_name": "推しA",
+      "group_name": "グループX",
+      "thumbnail_url": "https://..."
+    }
+  ]
+}
+```
 
 ---
 

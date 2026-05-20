@@ -109,6 +109,21 @@
 | ドキュメント | PascalCase + バージョン | `Requirements_v5_1.md` |
 | ステアリングディレクトリ | YYYYMMDD-kebab-case | `20260322-map-display` |
 
+### Supabase クエリルール（必須）
+- **FK ネスト結合構文（例: `oshis ( name, group_name )`）は使わない**
+- 理由: このプロジェクトでは `database.types.ts` の `Relationships` が未定義のため、結合クエリがエラーまたは空結果を返す
+- **必ず個別クエリで取得すること**（MapView.tsx のパターンに従う）
+
+```typescript
+// NG: FK ネスト結合（動かない）
+supabase.from('posts').select('id, oshis ( name ), post_images ( image_url )')
+
+// OK: 個別クエリで取得
+const { data: posts } = await supabase.from('posts').select('id, oshi_id')
+const { data: oshiRows } = await supabase.from('oshis').select('id, name').in('id', oshiIds)
+const { data: imageRows } = await supabase.from('post_images').select('post_id, image_url').in('post_id', postIds)
+```
+
 ### Next.js `use client` ルール（必須）
 - **`page.tsx` に `'use client'` を直接記載しない**
 - クライアント処理が必要な場合は `components/` 配下の別ファイルに切り出し、`page.tsx` からimportする

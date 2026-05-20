@@ -1,5 +1,53 @@
 import { createClient } from './client';
 
+type Category = 'ooh' | 'popup' | 'event' | 'other';
+
+export async function updatePost(
+  postId: string,
+  data: { category?: Category; comment?: string | null }
+): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('posts')
+    .update(data)
+    .eq('id', postId);
+  return !error;
+}
+
+export async function deletePost(postId: string, imageUrls: string[]): Promise<boolean> {
+  const supabase = createClient();
+
+  // Storage からファイル削除（メイン画像 + サムネイル）
+  const storagePaths: string[] = [];
+  for (const url of imageUrls) {
+    const marker = '/post-images/';
+    const idx = url.indexOf(marker);
+    if (idx !== -1) {
+      const path = url.slice(idx + marker.length);
+      storagePaths.push(path);
+      // サムネイルは ".webp" → "_thumb.webp" に変換して追加
+      storagePaths.push(path.replace(/\.webp$/, '_thumb.webp'));
+    }
+  }
+  if (storagePaths.length > 0) {
+    await supabase.storage.from('post-images').remove(storagePaths);
+  }
+
+  // post_images レコード削除
+  const { error: imgError } = await supabase
+    .from('post_images')
+    .delete()
+    .eq('post_id', postId);
+  if (imgError) return false;
+
+  // posts レコード削除
+  const { error: postError } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', postId);
+  return !postError;
+}
+
 /**
  * 指定した緯度経度から半径50m以内のスポットを検索する
  * 見つかった場合は spot_id を返す、なければ null を返す
