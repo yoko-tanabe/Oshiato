@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/lib/user/useCurrentUser';
 import { createClient } from '@/lib/supabase/client';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import LogoutButton from '@/components/ui/LogoutButton/LogoutButton';
+import GuestUpgradeBanner from '@/components/auth/GuestUpgradeBanner/GuestUpgradeBanner'; // GUEST-MODE
 import styles from './my-page-client.module.css';
 
 type OshiStat = {
@@ -23,7 +24,7 @@ type UserOshiRow = {
 };
 
 export default function MyPageClient() {
-  const { userId, displayName, isLoading: isUserLoading } = useCurrentUser();
+  const { userId, displayName, isLoading: isUserLoading, isAnonymous } = useCurrentUser(); // GUEST-MODE: isAnonymous
   const [postCount, setPostCount] = useState(0);
   const [visitCount, setVisitCount] = useState(0);
   const [oshiStats, setOshiStats] = useState<OshiStat[]>([]);
@@ -111,8 +112,12 @@ export default function MyPageClient() {
             </Link>
           </div>
         </div>
-        <LogoutButton />
+        {/* GUEST-MODE: ゲストはログアウトを出さない（撤去時は <LogoutButton /> に戻す） */}
+        {!isAnonymous && <LogoutButton />}
       </div>
+
+      {/* GUEST-MODE: ゲスト向け会員登録バナー（撤去時はこの行を削除） */}
+      <GuestUpgradeBanner />
 
       {/* 統計カード */}
       <section className={styles.statsSection}>
